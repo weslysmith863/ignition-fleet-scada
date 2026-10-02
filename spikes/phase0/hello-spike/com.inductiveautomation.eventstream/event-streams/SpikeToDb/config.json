@@ -1,0 +1,91 @@
+{
+  "enabled": true,
+  "source": {
+    "type": "ignition.tagEvent",
+    "config": {
+      "paths": [
+        "[default]SpikeCounter"
+      ],
+      "changeTypes": [
+        "VALUE"
+      ],
+      "skipInitialValues": false
+    }
+  },
+  "sourceEncoder": {
+    "type": "ignition.jsonObject",
+    "properties": {
+      "encoding": "UTF-8"
+    }
+  },
+  "handlers": [
+    {
+      "enabled": true,
+      "type": "com.inductiveautomation.sqlbridge.datasource",
+      "config": {
+        "mode": "INSERT",
+        "bypassStoreForward": false,
+        "datasourceName": "fleetdb",
+        "tableName": "spike_events",
+        "autoCreateTable": false,
+        "timestampColumnEnabled": false,
+        "timestampColumnName": "",
+        "columnMappings": [
+          {
+            "name": "tag_path",
+            "type": "String",
+            "value": {
+              "data": "{event.metadata.tagPath}",
+              "type": "EXPRESSION"
+            }
+          },
+          {
+            "name": "value",
+            "type": "String",
+            "value": {
+              "data": "{event.data.value}",
+              "type": "EXPRESSION"
+            }
+          },
+          {
+            "name": "quality",
+            "type": "String",
+            "value": {
+              "data": "{event.data.quality}",
+              "type": "EXPRESSION"
+            }
+          }
+        ],
+        "whereClauses": []
+      },
+      "failureStrategy": {
+        "type": "ABORT",
+        "retryPolicy": null
+      }
+    }
+  ],
+  "batch": {
+    "debounceMs": 100,
+    "maxWaitMs": 1000,
+    "maxQueueSize": 0,
+    "overflow": "DROP_OLDEST"
+  },
+  "filter": {
+    "enabled": false,
+    "userCode": "\treturn True"
+  },
+  "transform": {
+    "enabled": false,
+    "userCode": "\treturn event.data"
+  },
+  "transformEncoder": {
+    "type": "ignition.jsonObject",
+    "properties": {
+      "encoding": "UTF-8"
+    }
+  },
+  "onError": {
+    "enabled": false,
+    "userCode": ""
+  }
+}

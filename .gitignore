@@ -1,0 +1,27 @@
+# Secrets: never commit. Commit .env.example only.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# Local gateway runtime data (bind-mount targets, license state, logs)
+volumes/
+*.gwbk
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Ignition runtime artifacts. Revisit in Phase 0 spike: what the gateway writes
+# that should NOT be committed (see docs/adr/0003).
+**/.resources/

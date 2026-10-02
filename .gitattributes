@@ -1,0 +1,12 @@
+# Ignition 8.3 stores config and projects as JSON files, and the gateways run on
+# Linux (LF). Keep everything LF so Windows checkouts do not show phantom diffs.
+* text=auto eol=lf
+.githooks/* text eol=lf
+*.json text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.csv text eol=lf
+*.sql text eol=lf

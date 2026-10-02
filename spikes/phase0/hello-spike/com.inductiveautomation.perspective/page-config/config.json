@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "/": {
+      "viewPath": "HelloFleet"
+    }
+  },
+  "sharedDocks": {
+    "cornerPriority": "top-bottom"
+  }
+}

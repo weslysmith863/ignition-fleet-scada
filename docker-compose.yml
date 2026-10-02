@@ -1,0 +1,85 @@
+# Phase 0 skeleton: one hub gateway and one site gateway.
+# See docs/layer-cards/00-platform-skeleton.md and docs/adr/0002, 0003.
+name: ignition-fleet-scada
+
+x-gateway: &gateway
+  image: inductiveautomation/ignition:${IGNITION_IMAGE_TAG:-8.3.9}
+  restart: unless-stopped
+  environment: &gateway-env
+    # Auto-commissioning needs all four of these (platform environment variables reference, 8.3).
+    ACCEPT_IGNITION_EULA: ${ACCEPT_IGNITION_EULA}
+    IGNITION_EDITION: ${IGNITION_EDITION:-standard}   # standard = trial mode; maker needs a license key and token
+    GATEWAY_ADMIN_USERNAME: ${GATEWAY_ADMIN_USERNAME}
+    GATEWAY_ADMIN_PASSWORD: ${GATEWAY_ADMIN_PASSWORD}
+    DISABLE_QUICKSTART: "true"
+    TZ: ${TZ:-America/Chicago}
+
+services:
+  hub:
+    <<: *gateway
+    # -n sets the gateway system name, -m sets max JVM memory in MB
+    command: ["-n", "hub", "-m", "1024"]
+    environment:
+      <<: *gateway-env
+      # Maker leased license for this gateway (one key and token per gateway). Values live in .env only.
+      IGNITION_LICENSE_KEY: ${HUB_LICENSE_KEY:-}
+      IGNITION_ACTIVATION_TOKEN: ${HUB_ACTIVATION_TOKEN:-}
+      # The hub only accepts Gateway Network connections from gateways on this list.
+      GATEWAY_NETWORK_SECURITYPOLICY: SpecifiedList
+      GATEWAY_NETWORK_WHITELIST: site1
+      # DEV ONLY (see docs/adr/0004): allow plaintext Gateway Network on the private Compose network.
+      # Phase 0 found the SSL link fails until the site trusts the hub's self-signed certificate.
+      GATEWAY_NETWORK_REQUIRESSL: "false"
+    ports:
+      # 8088 is already used by the DosingControl gateway on this PC
+      - "8090:8088"
+    volumes:
+      - hub-data:/usr/local/bin/ignition/data
+
+  site1:
+    <<: *gateway
+    command: ["-n", "site1", "-m", "1024"]
+    environment:
+      <<: *gateway-env
+      IGNITION_LICENSE_KEY: ${SITE1_LICENSE_KEY:-}
+      IGNITION_ACTIVATION_TOKEN: ${SITE1_ACTIVATION_TOKEN:-}
+      # Outbound Gateway Network connection from the site to the hub (service name resolves on the Compose network).
+      GATEWAY_NETWORK_0_HOST: hub
+      # DEV ONLY (see docs/adr/0004): plaintext link to the hub's HTTP port. SSL would use 8060.
+      GATEWAY_NETWORK_0_PORT: "8088"
+      GATEWAY_NETWORK_0_ENABLESSL: "false"
+      GATEWAY_NETWORK_0_DESCRIPTION: site1 to hub
+    ports:
+      - "8091:8088"
+    volumes:
+      - site1-data:/usr/local/bin/ignition/data
+      # SPIKE (disabled): Git-tracked project folder bind-mounted into the data volume.
+      # It only works if the volume was seeded by a first boot WITHOUT this line. On a brand-new volume,
+      # Docker creates projects/ as root, the gateway cannot write there, and it FAULTS. See spike notes.
+      # - ./ignition/projects/gitspike:/usr/local/bin/ignition/data/projects/gitspike
+
+  # Relational store: tag history, alarm journal, downtime, Event Streams output (ADR 0001, design decision D8).
+  # Reachable from the gateways as postgres:5432 on the Compose network, and from this PC on localhost only.
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ:-America/Chicago}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+# Named volumes keep gateway state (config, projects, license) and database files across container recreation.
+volumes:
+  hub-data:
+  site1-data:
+  postgres-data:
