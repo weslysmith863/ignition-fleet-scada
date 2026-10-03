@@ -55,6 +55,9 @@ explainable.
   2026-10-03). The assistant shell's PATH also predates Docker, so there call
   `%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin\docker.exe` by full path. The command filter misreads `rm` and
   `Remove-Item` text even inside harmless commands, so delete files with Python.
+- Port 5020 belongs to the native DosingControl gateway's Modbus device: it connected to a spike server there on
+  2026-10-03 (inferred from the process tree; its device settings were not inspected). Use another port for spikes
+  (15020 worked).
 - Keep this repo outside OneDrive. Keep every file LF (`.gitattributes`).
 
 ## Public-repo hygiene
