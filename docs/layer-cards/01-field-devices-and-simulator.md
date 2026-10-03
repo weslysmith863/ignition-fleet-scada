@@ -51,8 +51,10 @@ flowchart LR
 ## What it owns
 
 - The physics chain below, run on a real-time clock (with a start-time option) and a seed.
-- The Modbus register layout for four inverters (SunSpec 103 subset plus 123 power-limit points), the weather
-  station, and the POI meter. Unit IDs for the weather station and meter are an open item for the points list.
+- The Modbus register layout: four inverters on units 1 to 4 (SunSpec model 103 plus the model 123 power-limit points,
+  which are read-only mirrors in Phase 1), the weather station on unit 5 (models 302, 303, 307), and the POI meter on
+  unit 6 (model 203). Details are in [ADR 0009](../adr/0009-phase1-weather-meter-layouts-unit-ids-inverter-details.md)
+  and the generated [register map](../points/site1-register-map.md).
 - The five plant controller nodes: `ActivePowerLimit_MW` and `LimitEnable` (write), `LimitActive`, `POI_MW`, and
   `Status` (read).
 - Enforcing an accepted power limit by capping inverter output, so curtailment shows up in the data.

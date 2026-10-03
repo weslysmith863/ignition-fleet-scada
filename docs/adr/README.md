@@ -13,3 +13,4 @@ changes, add a new ADR that supersedes the old one.
 | [0006](0006-phase1-plant-register-map-and-simulator.md) | Phase 1 plant size, register map, addressing, and simulator clock | Accepted |
 | [0007](0007-phase1-tag-layout-udt-historian-alarms-plant-controller.md) | Phase 1 tag layout, Inverter UDT shape, historian, alarms, and plant controller nodes | Accepted |
 | [0008](0008-phase1-simulated-site-orientation-clouds-signals.md) | Phase 1 simulated site, panel orientation, clouds, and weather and meter signals | Accepted |
+| [0009](0009-phase1-weather-meter-layouts-unit-ids-inverter-details.md) | Weather station and meter layouts, unit IDs, and inverter details | Accepted |

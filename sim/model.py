@@ -33,6 +33,7 @@ class PlantModel:
         self.config = config
         self._clouds = p.CloudModel(config.seed)
         self.energy_wh = 0.0
+        self.inverter_energy_wh = [0.0] * config.inverters
         self.limit_w = 0.0
         self.limit_enabled = False
 
@@ -66,10 +67,14 @@ class PlantModel:
 
         poi_w = sum(ac_w)
         self.energy_wh += poi_w * dt_s / 3600.0
+        for i, ac in enumerate(ac_w):
+            self.inverter_energy_wh[i] += ac * dt_s / 3600.0
         return {
             "sun": sun,
             "cloud_factor": cloud_factor,
             "ghi_w_m2": ghi,
+            "dni_w_m2": dni,
+            "dhi_w_m2": dhi,
             "poa_w_m2": poa,
             "ambient_c": ambient_c,
             "module_c": cell_c,
@@ -78,6 +83,7 @@ class PlantModel:
             "inverter_unlimited_ac_w": unlimited_ac_w,
             "poi_w": poi_w,
             "energy_wh": self.energy_wh,
+            "inverter_energy_wh": list(self.inverter_energy_wh),
             "limit_enabled": self.limit_enabled,
             "limit_w": self.limit_w,
             "limit_binding": limit_binding,
