@@ -15,6 +15,15 @@ continues from [phase0-findings.md](phase0-findings.md). The spike code is in
 | 19 | Can Designer show tags without a project? | Not in this run: a project had to be created first (reported while checking the spike tags). | Phase 1 Designer steps |
 | 20 | Can the REST API remove tags? | No delete endpoint found in the spec. Tag import accepts the collision policies Abort, Overwrite, Rename, Ignore, and MergeOverwrite, so tags can be created, replaced, or merged but not removed. The spike tags were deleted in Designer; the spike device was deleted through the REST API (`POST /resources/delete/...` with name and signature). | Generator (retiring a point) |
 
+## Findings from the hand-built Inverter UDT (2026-10-03)
+
+| # | Question | Answer | Where it matters |
+|---|---|---|---|
+| 21 | Does Ignition's default `HRUI` word order read a SunSpec 32-bit value correctly? | Yes. The `WH` energy counter (high word 9, low word 17326 at the time) read as 598.12 kWh in the tag and 607.15 kWh from the simulator about 26 seconds later, matching the roughly 21 kWh per minute at full output. A swapped word order would have read about 1.1 million kWh. | Register map, Inverter UDT |
+| 22 | What are the Data Type names in Designer? | They differ from the JSON names: Short is Int2, Integer is Int4, Long is Int8, Double is Float8. A member left at the default is exported without a `dataType` key, so an expression tag left at Integer is silent in the export and rounds its result. The expression text and value source were saved exactly as typed. | Generator, UDT hand-build instructions |
+| 23 | Where can folders and parameters go in a UDT definition? | The UDT Definitions tree holds types, and folders there organize types. Inside a type, folders are allowed as members (the Raw folder). New parameters can only be added at the type's top node. A parameter-bound OPC item path is exported as `bindType: parameter` and shown in italics in the editor. (From the Ignition documentation and observed in the editor.) | Inverter UDT |
+| 24 | Does a relative reference into a sub-folder work inside a UDT instance? | Yes. `{[.]Raw/W}` and the other expressions evaluated with good quality on the `Inv1` instance. | ADR 0007 consequence closed |
+
 ## How the spike ran
 
 `server.py` is a standard-library Modbus TCP server for units 1 and 2 with a SunSpec model 103 block at base address
