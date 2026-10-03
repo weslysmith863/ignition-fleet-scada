@@ -1,0 +1,318 @@
+{
+  "name": "_types_",
+  "tagType": "Folder",
+  "tags": [
+    {
+      "name": "Inverter",
+      "parameters": {
+        "Device": {
+          "dataType": "String"
+        },
+        "RatedKW": {
+          "dataType": "Float"
+        },
+        "UnitId": {
+          "dataType": "Integer"
+        }
+      },
+      "tagType": "UdtType",
+      "tags": [
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/W} * pow(10, {[.]Raw/W_SF}) / 1000",
+          "name": "ACPower_kW",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/WH} * pow(10, {[.]Raw/WH_SF}) / 1000",
+          "name": "Energy_kWh",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/Hz} * pow(10, {[.]Raw/Hz_SF})",
+          "name": "Frequency_Hz",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "name": "Raw",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "Hz",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUS40087"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "Hz_SF",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40088"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "St",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUS40109"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "W",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40085"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "W_SF",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40086"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "dataType": "Int8",
+              "name": "WH",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUI40095"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "WH_SF",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40097"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            }
+          ]
+        },
+        {
+          "dataType": "String",
+          "expression": "case({[.]Raw/St}, 1, \"Off\", 2, \"Sleeping\", 3, \"Starting\", 4, \"MPPT\", 5, \"Throttled\", 6, \"Shutting down\", 7, \"Fault\", 8, \"Standby\", \"Unknown\")",
+          "name": "State",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        }
+      ]
+    },
+    {
+      "name": "Meter",
+      "parameters": {
+        "Device": {
+          "dataType": "String"
+        },
+        "UnitId": {
+          "dataType": "Integer"
+        }
+      },
+      "tagType": "UdtType",
+      "tags": [
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/TotWhExp} * pow(10, {[.]Raw/TotWh_SF}) / 1000000",
+          "name": "Energy_MWh",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/W} * pow(10, {[.]Raw/W_SF}) / 1000000",
+          "name": "POI_MW",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "name": "Raw",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "PPV",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40082"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "TotWh_SF",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40125"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "dataType": "Int8",
+              "name": "TotWhExp",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUI40109"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "V_SF",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40086"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "W",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40089"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "W_SF",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40093"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            }
+          ]
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/PPV} * pow(10, {[.]Raw/V_SF}) / 1000",
+          "name": "Voltage_kV",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        }
+      ]
+    },
+    {
+      "name": "Weather",
+      "parameters": {
+        "Device": {
+          "dataType": "String"
+        },
+        "UnitId": {
+          "dataType": "Integer"
+        }
+      },
+      "tagType": "UdtType",
+      "tags": [
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/TmpAmb} * pow(10, -1)",
+          "name": "AmbientTemp_C",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/GHI}",
+          "name": "GHI_Wm2",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/TmpBOM} * pow(10, -1)",
+          "name": "ModuleTemp_C",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/POAI}",
+          "name": "POA_Wm2",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "name": "Raw",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "GHI",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUS40073"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "POAI",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUS40074"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "TmpAmb",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40083"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "TmpBOM",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40080"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -89,6 +89,11 @@ class RestGateway:
         found = self._call("GET", "/tags/export?" + query)
         return None if found.get("tagType") == "Unknown" else found
 
+    def export_tags(self, path):
+        """The tag JSON under a path, children included. `_types_` is the folder that holds the UDT definitions."""
+        query = urllib.parse.urlencode({"provider": PROVIDER, "type": "json", "path": path})
+        return self._call("GET", "/tags/export?" + query)
+
     def import_tags(self, payload, path=None, policy="Abort"):
         """Import tag JSON. Abort means a name collision stops the import, so nothing is ever overwritten."""
         query = {"provider": PROVIDER, "type": "json", "collisionPolicy": policy}
