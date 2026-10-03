@@ -1,0 +1,154 @@
+"""Tests for generator.apply against an in-memory fake gateway: create what is missing, never overwrite, report drift."""
+import copy
+import pathlib
+import unittest
+
+from generator import apply, build
+from generator.points import read_points
+from generator.tests.test_build import FAKE_SCHEMA
+
+ROWS = read_points(pathlib.Path(__file__).resolve().parents[2] / "points" / "site1.csv")
+
+
+class FakeGateway:
+    def __init__(self):
+        self.devices = {}
+        self.tags = {}
+        self.created_devices = []
+        self.imports = []
+        self.writes = []  # the order of changes: "device", "wait", "instances"
+        self.devices_ready = True
+
+    def device_settings_schema(self):
+        return FAKE_SCHEMA
+
+    def device(self, name):
+        return self.devices.get(name)
+
+    def create_device(self, body):
+        self.devices[body["name"]] = body
+        self.created_devices.append(body["name"])
+        self.writes.append("device")
+
+    def wait_for_devices(self, timeout_s=30.0, poll_s=1.0):
+        self.writes.append("wait")
+        return self.devices_ready
+
+    def tag(self, path):
+        return self.tags.get(path)
+
+    def import_tags(self, payload, path=None, policy="Abort"):
+        self.writes.append("instances")
+        self.imports.append((path, copy.deepcopy(payload), policy))
+        for item in payload["tags"]:
+            if path is None:  # a folder with its children, at the root
+                self.tags[item["name"]] = {"name": item["name"], "tagType": "Folder"}
+                for child in item["tags"]:
+                    self.tags["%s/%s" % (item["name"], child["name"])] = child
+            else:
+                self.tags["%s/%s" % (path, item["name"])] = item
+
+    def add_hand_built(self, row, device_overrides=None, instance_overrides=None):
+        body = build.modbus_device_body(row, FAKE_SCHEMA)
+        for key, value in (device_overrides or {}).items():
+            body["config"]["settings"]["connectivity"][key] = value
+        self.devices[row.device] = body
+        instance = build.udt_instance(row)
+        for key, value in (instance_overrides or {}).items():
+            instance["parameters"][key]["value"] = value
+        self.tags.setdefault(row.folder, {"name": row.folder, "tagType": "Folder"})
+        self.tags["%s/%s" % (row.folder, row.device)] = instance
+
+
+class ApplyTests(unittest.TestCase):
+    def test_an_empty_gateway_gets_every_device_and_instance_in_one_new_folder(self):
+        gateway = FakeGateway()
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(sorted(gateway.created_devices), ["Inv1", "Inv2", "Inv3", "Inv4"])
+        self.assertEqual(len(gateway.imports), 1)
+        path, payload, policy = gateway.imports[0]
+        self.assertIsNone(path)
+        self.assertEqual(policy, "Abort")
+        self.assertEqual(payload["tags"][0]["name"], "Inverters")
+        self.assertEqual([t["name"] for t in payload["tags"][0]["tags"]], ["Inv1", "Inv2", "Inv3", "Inv4"])
+        self.assertEqual(len(report.created_devices), 4)
+        self.assertEqual(len(report.created_instances), 4)
+        self.assertEqual(report.drift, [])
+
+    def test_hand_built_inv1_and_inv2_are_left_alone_and_only_inv3_and_inv4_are_created(self):
+        gateway = FakeGateway()
+        gateway.add_hand_built(ROWS[0])
+        gateway.add_hand_built(ROWS[1])
+        before = copy.deepcopy((gateway.devices, gateway.tags))
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(gateway.created_devices, ["Inv3", "Inv4"])
+        self.assertEqual(len(gateway.imports), 1)
+        path, payload, policy = gateway.imports[0]
+        self.assertEqual((path, policy), ("Inverters", "Abort"))  # into the existing folder, never overwriting
+        self.assertEqual([t["name"] for t in payload["tags"]], ["Inv3", "Inv4"])
+        for name in ("Inv1", "Inv2"):
+            self.assertEqual(gateway.devices[name], before[0][name])
+            self.assertEqual(gateway.tags["Inverters/" + name], before[1]["Inverters/" + name])
+        self.assertEqual(sorted(report.unchanged), ["device Inv1", "device Inv2", "instance Inverters/Inv1", "instance Inverters/Inv2"])
+        self.assertEqual(report.drift, [])
+
+    def test_devices_are_created_and_healthy_before_the_instances_that_read_them(self):
+        # A tag that subscribes before its device is ready can stay stuck on Bad_NodeIdUnknown until it is restarted
+        # (Phase 1 finding 26), so every device is created, then waited for, then the instances are imported.
+        gateway = FakeGateway()
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(gateway.writes, ["device"] * 4 + ["wait", "instances"])
+        self.assertEqual(report.warnings, [])
+
+    def test_unhealthy_devices_after_the_wait_produce_a_warning_but_the_run_continues(self):
+        gateway = FakeGateway()
+        gateway.devices_ready = False
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(len(report.warnings), 1)
+        self.assertIn("Restart Tag", report.warnings[0])
+        self.assertEqual(len(report.created_instances), 4)
+
+    def test_no_wait_when_no_device_was_created(self):
+        gateway = FakeGateway()
+        gateway.add_hand_built(ROWS[0])
+        apply.apply_rows(gateway, ROWS[:1])
+        self.assertEqual(gateway.writes, [])
+
+    def test_a_second_run_changes_nothing(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        imports_before, devices_before = len(gateway.imports), len(gateway.created_devices)
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual((len(gateway.imports), len(gateway.created_devices)), (imports_before, devices_before))
+        self.assertEqual(report.created_devices + report.created_instances + report.drift, [])
+        self.assertEqual(len(report.unchanged), 8)
+
+    def test_a_copied_instance_is_reported_as_drift_and_not_fixed(self):
+        gateway = FakeGateway()
+        gateway.add_hand_built(ROWS[0])
+        gateway.add_hand_built(ROWS[1], instance_overrides={"Device": "Inv1", "UnitId": 1})  # Inv2 copied from Inv1
+        broken = copy.deepcopy(gateway.tags["Inverters/Inv2"])
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(len(report.drift), 2)
+        self.assertTrue(any("parameter Device is 'Inv1', points list says 'Inv2'" in line for line in report.drift))
+        self.assertTrue(any("parameter UnitId is 1, points list says 2" in line for line in report.drift))
+        self.assertEqual(gateway.tags["Inverters/Inv2"], broken)  # untouched
+
+    def test_a_device_pointing_at_the_wrong_port_is_reported_as_drift(self):
+        gateway = FakeGateway()
+        gateway.add_hand_built(ROWS[0], device_overrides={"port": 5020})
+        report = apply.apply_rows(gateway, ROWS[:1])
+        self.assertEqual(report.drift, ["device Inv1: port is 5020, points list says 15020"])
+
+    def test_a_dry_run_changes_nothing_and_says_what_it_would_do(self):
+        gateway = FakeGateway()
+        gateway.add_hand_built(ROWS[0])
+        report = apply.apply_rows(gateway, ROWS, dry_run=True)
+        self.assertEqual(gateway.created_devices, [])
+        self.assertEqual(gateway.imports, [])
+        self.assertEqual(report.created_devices, ["would create device Inv2", "would create device Inv3", "would create device Inv4"])
+        self.assertEqual(report.created_instances[0], "would create instance Inverters/Inv2")
+
+
+if __name__ == "__main__":
+    unittest.main()

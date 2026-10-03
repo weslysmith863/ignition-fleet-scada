@@ -1,0 +1,127 @@
+"""Make a gateway match the points list: create the devices and UDT instances that are missing, report any that differ.
+
+    python -m generator.apply points/site1.csv --dry-run   # show what would happen
+    python -m generator.apply points/site1.csv             # create what is missing
+
+It never overwrites or deletes anything: existing devices and instances are only compared. A difference (drift) is
+reported and left for a person to decide, because a hand-built object may be the one that is right. Exit code 0 means the
+gateway matches the points list, 2 means differences were found, 1 means an error.
+"""
+import argparse
+import sys
+from collections import defaultdict
+from dataclasses import dataclass, field
+
+from generator import build
+from generator.gateway import GatewayError, RestGateway
+from generator.points import PointsError, read_points
+
+
+@dataclass
+class Report:
+    created_devices: list = field(default_factory=list)
+    created_instances: list = field(default_factory=list)
+    unchanged: list = field(default_factory=list)
+    drift: list = field(default_factory=list)
+    warnings: list = field(default_factory=list)
+
+
+def device_drift(row, existing):
+    """Differences between the points list and an existing device resource."""
+    config = existing.get("config", {})
+    connectivity = config.get("settings", {}).get("connectivity", {})
+    found = {"type": config.get("profile", {}).get("type"), "host": connectivity.get("hostname"),
+             "port": connectivity.get("port"), "enabled": existing.get("enabled")}
+    wanted = {"type": "ModbusTcp", "host": row.host, "port": row.port, "enabled": True}
+    return ["device %s: %s is %r, points list says %r" % (row.device, key, found[key], wanted[key])
+            for key in wanted if found[key] != wanted[key]]
+
+
+def instance_drift(row, existing):
+    """Differences between the points list and an existing UDT instance."""
+    wanted = build.udt_instance(row)
+    problems = []
+    if existing.get("typeId") != wanted["typeId"]:
+        problems.append("instance %s: type is %r, points list says %r" % (row.device, existing.get("typeId"), wanted["typeId"]))
+    found_values = build.parameter_values(existing)
+    for name, expected in build.parameter_values(wanted).items():
+        if found_values.get(name) != expected:
+            problems.append("instance %s: parameter %s is %r, points list says %r" % (row.device, name, found_values.get(name), expected))
+    return problems
+
+
+def apply_rows(gateway, rows, dry_run=False):
+    report = Report()
+    missing_devices, missing_instances = [], defaultdict(list)
+    for row in rows:
+        existing = gateway.device(row.device)
+        if existing is None:
+            missing_devices.append(row)
+        else:
+            _record(report, "device %s" % row.device, device_drift(row, existing))
+    for row in rows:
+        existing = gateway.tag("%s/%s" % (row.folder, row.device))
+        if existing is None:
+            missing_instances[row.folder].append(row)
+        else:
+            _record(report, "instance %s/%s" % (row.folder, row.device), instance_drift(row, existing))
+
+    verb = "would create" if dry_run else "created"
+    if missing_devices and not dry_run:
+        schema = gateway.device_settings_schema()
+        for row in missing_devices:
+            gateway.create_device(build.modbus_device_body(row, schema))
+        if missing_instances and not gateway.wait_for_devices():
+            report.warnings.append("devices were not all healthy after waiting; if new instance tags show "
+                                   "Bad_NodeIdUnknown, use Restart Tag on them (finding 26)")
+    report.created_devices = ["%s device %s" % (verb, row.device) for row in missing_devices]
+    for folder, folder_rows in missing_instances.items():
+        if not dry_run:
+            instances = [build.udt_instance(r) for r in folder_rows]
+            if gateway.tag(folder) is None:  # a fresh gateway: create the folder together with its instances
+                gateway.import_tags({"tags": [{"name": folder, "tagType": "Folder", "tags": instances}]})
+            else:
+                gateway.import_tags({"tags": instances}, path=folder)
+        report.created_instances += ["%s instance %s/%s" % (verb, folder, r.device) for r in folder_rows]
+    return report
+
+
+def _record(report, label, problems):
+    if problems:
+        report.drift += problems
+    else:
+        report.unchanged.append(label)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("points", help="path to the points list CSV")
+    parser.add_argument("--dry-run", action="store_true", help="report only; change nothing")
+    args = parser.parse_args(argv)
+    try:
+        rows = read_points(args.points)
+        by_site = defaultdict(list)
+        for row in rows:
+            by_site[row.site].append(row)
+        exit_code = 0
+        for site, site_rows in by_site.items():
+            report = apply_rows(RestGateway(site), site_rows, dry_run=args.dry_run)
+            print("== %s ==" % site)
+            for line in report.created_devices + report.created_instances:
+                print("  %s" % line)
+            for line in report.unchanged:
+                print("  unchanged: %s" % line)
+            for line in report.drift:
+                print("  DRIFT: %s" % line)
+            for line in report.warnings:
+                print("  WARNING: %s" % line)
+            if report.drift:
+                exit_code = 2
+        return exit_code
+    except (PointsError, GatewayError) as error:
+        print("error: %s" % error, file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
