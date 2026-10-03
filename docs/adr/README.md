@@ -11,3 +11,5 @@ changes, add a new ADR that supersedes the old one.
 | [0004](0004-dev-gateway-network-plaintext.md) | Plaintext Gateway Network for local development | Accepted (dev only) |
 | [0005](0005-deploy-and-configure-via-rest-api.md) | Deploy and configure gateways through the REST API | Accepted |
 | [0006](0006-phase1-plant-register-map-and-simulator.md) | Phase 1 plant size, register map, addressing, and simulator clock | Accepted |
+| [0007](0007-phase1-tag-layout-udt-historian-alarms-plant-controller.md) | Phase 1 tag layout, Inverter UDT shape, historian, alarms, and plant controller nodes | Accepted |
+| [0008](0008-phase1-simulated-site-orientation-clouds-signals.md) | Phase 1 simulated site, panel orientation, clouds, and weather and meter signals | Accepted |
