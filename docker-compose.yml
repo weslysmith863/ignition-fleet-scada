@@ -31,8 +31,9 @@ services:
       # Phase 0 found the SSL link fails until the site trusts the hub's self-signed certificate.
       GATEWAY_NETWORK_REQUIRESSL: "false"
     ports:
-      # 8088 is already used by the DosingControl gateway on this PC
-      - "8090:8088"
+      # 8088 is already used by the DosingControl gateway on this PC.
+      # Bound to loopback so the plaintext dev gateways are reachable from this PC only (docs/adr/0004).
+      - "127.0.0.1:8090:8088"
     volumes:
       - hub-data:/usr/local/bin/ignition/data
 
@@ -50,7 +51,7 @@ services:
       GATEWAY_NETWORK_0_ENABLESSL: "false"
       GATEWAY_NETWORK_0_DESCRIPTION: site1 to hub
     ports:
-      - "8091:8088"
+      - "127.0.0.1:8091:8088"
     volumes:
       - site1-data:/usr/local/bin/ignition/data
       # SPIKE (disabled): Git-tracked project folder bind-mounted into the data volume.

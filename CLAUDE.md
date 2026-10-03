@@ -50,9 +50,11 @@ explainable.
   faults the gateway. An API key needs the custom security level `API_RW` and the gateway setting Gateway Write
   Permissions allowing it.
 - Gateway scripts run Jython 2.7 (Python 2 syntax). Repo tooling is Python 3.
-- Windows shell: call `%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin\docker.exe` by full path (the assistant
-  shell's PATH predates Docker, and a stray empty `System32\docker` file shadows the command). The command filter
-  misreads `rm` and `Remove-Item` text even inside harmless commands, so delete files with Python.
+- Windows shell: a stray empty `System32\docker` file shadows the bare `docker` command in PowerShell, so it prints
+  nothing. Type `docker.exe` (with the extension) instead; that skips the stray file (verified in Wes's terminal on
+  2026-10-03). The assistant shell's PATH also predates Docker, so there call
+  `%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin\docker.exe` by full path. The command filter misreads `rm` and
+  `Remove-Item` text even inside harmless commands, so delete files with Python.
 - Keep this repo outside OneDrive. Keep every file LF (`.gitattributes`).
 
 ## Public-repo hygiene
