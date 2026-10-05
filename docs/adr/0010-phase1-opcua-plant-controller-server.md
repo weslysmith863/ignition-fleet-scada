@@ -28,6 +28,14 @@ library is `asyncua` 2.0.1 (pure Python, from PyPI), pinned in `sim/requirements
 5. **Writes are polled** twice a second instead of using a write callback. A limit lands within half a second, then takes
    effect on the plant model's next one-second step. Simpler, and inside the model's own time resolution.
 
+6. **The PlantController UDT has no parameters** (hand-built 2026-10-05, exported to `gateway/site1/udt-types.json`). Its five
+   members are OPC tags with OPC Server `PlantController` and item paths like
+   `nsu=urn:fleet-scada:simulator;s=PlantController.POI_MW`. The `nsu=` form names the namespace by its URI instead of an
+   index, so the path survives a different registration order. Each site has exactly one plant controller, so there is
+   nothing for a parameter to tell apart (unlike the four inverters). The convention instead is that every site's OPC
+   connection is named `PlantController`; the generator will have to create it that way. No Raw folder: OPC UA delivers
+   typed values already in engineering units.
+
 ## Dev-only relaxation
 
 The OPC UA server accepts anonymous clients with no signing or encryption (`SecurityPolicy None`), the same kind of
