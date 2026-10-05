@@ -29,17 +29,15 @@ def modbus_device_body(row, settings_schema):
 
 
 def udt_instance(row):
-    """A UDT instance in the shape Designer exports: name, type, and the three parameters (ADR 0007)."""
-    return {
-        "name": row.device,
-        "tagType": "UdtInstance",
-        "typeId": row.udt,
-        "parameters": {
-            "Device": {"dataType": "String", "value": row.device},
-            "UnitId": {"dataType": "Integer", "value": row.unit_id},
-            "RatedKW": {"dataType": "Float", "value": float(row.rated_kw)},
-        },
+    """A UDT instance in the shape Designer exports: name, type, and its parameters (ADR 0007). Device and UnitId for
+    every kind; RatedKW only for an inverter, because the Weather and Meter types do not have it."""
+    parameters = {
+        "Device": {"dataType": "String", "value": row.device},
+        "UnitId": {"dataType": "Integer", "value": row.unit_id},
     }
+    if row.rated_kw is not None:
+        parameters["RatedKW"] = {"dataType": "Float", "value": float(row.rated_kw)}
+    return {"name": row.device, "tagType": "UdtInstance", "typeId": row.udt, "parameters": parameters}
 
 
 def parameter_values(instance):

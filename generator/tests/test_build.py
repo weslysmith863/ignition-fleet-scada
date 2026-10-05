@@ -52,6 +52,15 @@ class BuildTests(unittest.TestCase):
         body = build.modbus_device_body(DeviceRow("site1", "Inv3", "inverter", 3, "h", 15020, 1250.0), FAKE_SCHEMA)
         self.assertNotIn("unit", json.dumps(body).lower())
 
+    def test_a_weather_station_and_a_meter_get_only_device_and_unit_id(self):
+        # The Weather and Meter UDT definitions have no RatedKW parameter (gateway/site1/udt-types.json).
+        for name, kind, unit, udt in (("Weather", "weather", 5, "Weather"), ("Meter", "meter", 6, "Meter")):
+            instance = build.udt_instance(DeviceRow("site1", name, kind, unit, "h", 15020, None))
+            self.assertEqual(instance, {"name": name, "tagType": "UdtInstance", "typeId": udt, "parameters": {
+                "Device": {"dataType": "String", "value": name},
+                "UnitId": {"dataType": "Integer", "value": unit},
+            }})
+
     def test_rated_power_is_always_a_float(self):
         row = DeviceRow("site1", "Inv2", "inverter", 2, "h", 15020, 1250)
         self.assertIsInstance(build.udt_instance(row)["parameters"]["RatedKW"]["value"], float)

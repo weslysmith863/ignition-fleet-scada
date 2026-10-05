@@ -8,6 +8,7 @@ from generator.points import read_points
 from generator.tests.test_build import FAKE_SCHEMA
 
 ROWS = read_points(pathlib.Path(__file__).resolve().parents[2] / "points" / "site1.csv")
+INVERTERS = [row for row in ROWS if row.kind == "inverter"]
 
 
 class FakeGateway:
@@ -41,10 +42,12 @@ class FakeGateway:
         self.writes.append("instances")
         self.imports.append((path, copy.deepcopy(payload), policy))
         for item in payload["tags"]:
-            if path is None:  # a folder with its children, at the root
+            if path is None and item["tagType"] == "Folder":  # a folder with its children, at the root
                 self.tags[item["name"]] = {"name": item["name"], "tagType": "Folder"}
                 for child in item["tags"]:
                     self.tags["%s/%s" % (item["name"], child["name"])] = child
+            elif path is None:  # an instance directly at the root
+                self.tags[item["name"]] = item
             else:
                 self.tags["%s/%s" % (path, item["name"])] = item
 
@@ -56,14 +59,15 @@ class FakeGateway:
         instance = build.udt_instance(row)
         for key, value in (instance_overrides or {}).items():
             instance["parameters"][key]["value"] = value
-        self.tags.setdefault(row.folder, {"name": row.folder, "tagType": "Folder"})
-        self.tags["%s/%s" % (row.folder, row.device)] = instance
+        if row.folder:
+            self.tags.setdefault(row.folder, {"name": row.folder, "tagType": "Folder"})
+        self.tags[row.tag_path] = instance
 
 
 class ApplyTests(unittest.TestCase):
     def test_an_empty_gateway_gets_every_device_and_instance_in_one_new_folder(self):
         gateway = FakeGateway()
-        report = apply.apply_rows(gateway, ROWS)
+        report = apply.apply_rows(gateway, INVERTERS)
         self.assertEqual(sorted(gateway.created_devices), ["Inv1", "Inv2", "Inv3", "Inv4"])
         self.assertEqual(len(gateway.imports), 1)
         path, payload, policy = gateway.imports[0]
@@ -80,7 +84,7 @@ class ApplyTests(unittest.TestCase):
         gateway.add_hand_built(ROWS[0])
         gateway.add_hand_built(ROWS[1])
         before = copy.deepcopy((gateway.devices, gateway.tags))
-        report = apply.apply_rows(gateway, ROWS)
+        report = apply.apply_rows(gateway, INVERTERS)
         self.assertEqual(gateway.created_devices, ["Inv3", "Inv4"])
         self.assertEqual(len(gateway.imports), 1)
         path, payload, policy = gateway.imports[0]
@@ -96,14 +100,14 @@ class ApplyTests(unittest.TestCase):
         # A tag that subscribes before its device is ready can stay stuck on Bad_NodeIdUnknown until it is restarted
         # (Phase 1 finding 26), so every device is created, then waited for, then the instances are imported.
         gateway = FakeGateway()
-        report = apply.apply_rows(gateway, ROWS)
+        report = apply.apply_rows(gateway, INVERTERS)
         self.assertEqual(gateway.writes, ["device"] * 4 + ["wait", "instances"])
         self.assertEqual(report.warnings, [])
 
     def test_unhealthy_devices_after_the_wait_produce_a_warning_but_the_run_continues(self):
         gateway = FakeGateway()
         gateway.devices_ready = False
-        report = apply.apply_rows(gateway, ROWS)
+        report = apply.apply_rows(gateway, INVERTERS)
         self.assertEqual(len(report.warnings), 1)
         self.assertIn("Restart Tag", report.warnings[0])
         self.assertEqual(len(report.created_instances), 4)
@@ -116,9 +120,9 @@ class ApplyTests(unittest.TestCase):
 
     def test_a_second_run_changes_nothing(self):
         gateway = FakeGateway()
-        apply.apply_rows(gateway, ROWS)
+        apply.apply_rows(gateway, INVERTERS)
         imports_before, devices_before = len(gateway.imports), len(gateway.created_devices)
-        report = apply.apply_rows(gateway, ROWS)
+        report = apply.apply_rows(gateway, INVERTERS)
         self.assertEqual((len(gateway.imports), len(gateway.created_devices)), (imports_before, devices_before))
         self.assertEqual(report.created_devices + report.created_instances + report.drift, [])
         self.assertEqual(len(report.unchanged), 8)
@@ -128,7 +132,7 @@ class ApplyTests(unittest.TestCase):
         gateway.add_hand_built(ROWS[0])
         gateway.add_hand_built(ROWS[1], instance_overrides={"Device": "Inv1", "UnitId": 1})  # Inv2 copied from Inv1
         broken = copy.deepcopy(gateway.tags["Inverters/Inv2"])
-        report = apply.apply_rows(gateway, ROWS)
+        report = apply.apply_rows(gateway, INVERTERS)
         self.assertEqual(len(report.drift), 2)
         self.assertTrue(any("parameter Device is 'Inv1', points list says 'Inv2'" in line for line in report.drift))
         self.assertTrue(any("parameter UnitId is 1, points list says 2" in line for line in report.drift))
@@ -143,11 +147,59 @@ class ApplyTests(unittest.TestCase):
     def test_a_dry_run_changes_nothing_and_says_what_it_would_do(self):
         gateway = FakeGateway()
         gateway.add_hand_built(ROWS[0])
-        report = apply.apply_rows(gateway, ROWS, dry_run=True)
+        report = apply.apply_rows(gateway, INVERTERS, dry_run=True)
         self.assertEqual(gateway.created_devices, [])
         self.assertEqual(gateway.imports, [])
         self.assertEqual(report.created_devices, ["would create device Inv2", "would create device Inv3", "would create device Inv4"])
         self.assertEqual(report.created_instances[0], "would create instance Inverters/Inv2")
+
+
+class WeatherAndMeterTests(unittest.TestCase):
+    def test_the_full_list_creates_six_devices_then_the_inverter_folder_then_two_root_instances(self):
+        gateway = FakeGateway()
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(sorted(gateway.created_devices), ["Inv1", "Inv2", "Inv3", "Inv4", "Meter", "Weather"])
+        self.assertEqual(gateway.writes, ["device"] * 6 + ["wait", "instances", "instances"])
+        (folder_path, folder_payload, _), (root_path, root_payload, root_policy) = gateway.imports
+        self.assertIsNone(folder_path)
+        self.assertEqual(folder_payload["tags"][0]["name"], "Inverters")
+        self.assertIsNone(root_path)  # the root, not a folder
+        self.assertEqual(root_policy, "Abort")
+        self.assertEqual([t["name"] for t in root_payload["tags"]], ["Weather", "Meter"])
+        self.assertEqual([t["typeId"] for t in root_payload["tags"]], ["Weather", "Meter"])
+        self.assertEqual(report.created_instances[-2:], ["created instance Weather", "created instance Meter"])
+        self.assertEqual(report.drift, [])
+
+    def test_only_weather_and_meter_are_created_when_the_inverters_already_exist(self):
+        gateway = FakeGateway()
+        for row in INVERTERS:
+            gateway.add_hand_built(row)
+        before = copy.deepcopy((gateway.devices, gateway.tags))
+        apply.apply_rows(gateway, ROWS)
+        self.assertEqual(sorted(gateway.created_devices), ["Meter", "Weather"])
+        self.assertEqual(len(gateway.imports), 1)
+        for name, device in before[0].items():
+            self.assertEqual(gateway.devices[name], device)
+        for path, tag in before[1].items():
+            self.assertEqual(gateway.tags[path], tag)
+
+    def test_a_weather_instance_on_the_wrong_unit_is_reported_as_drift_and_not_fixed(self):
+        gateway = FakeGateway()
+        weather = next(row for row in ROWS if row.device == "Weather")
+        gateway.add_hand_built(weather, instance_overrides={"UnitId": 1})
+        broken = copy.deepcopy(gateway.tags["Weather"])
+        report = apply.apply_rows(gateway, [weather])
+        self.assertEqual(report.drift, ["instance Weather: parameter UnitId is 1, points list says 5"])
+        self.assertEqual(gateway.tags["Weather"], broken)
+
+    def test_a_second_run_over_the_full_list_changes_nothing(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        imports_before = len(gateway.imports)
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(len(gateway.imports), imports_before)
+        self.assertEqual(report.created_devices + report.created_instances + report.drift, [])
+        self.assertEqual(len(report.unchanged), 12)
 
 
 if __name__ == "__main__":

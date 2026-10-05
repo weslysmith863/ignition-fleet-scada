@@ -60,11 +60,11 @@ def apply_rows(gateway, rows, dry_run=False):
         else:
             _record(report, "device %s" % row.device, device_drift(row, existing))
     for row in rows:
-        existing = gateway.tag("%s/%s" % (row.folder, row.device))
+        existing = gateway.tag(row.tag_path)
         if existing is None:
             missing_instances[row.folder].append(row)
         else:
-            _record(report, "instance %s/%s" % (row.folder, row.device), instance_drift(row, existing))
+            _record(report, "instance %s" % row.tag_path, instance_drift(row, existing))
 
     verb = "would create" if dry_run else "created"
     if missing_devices and not dry_run:
@@ -78,11 +78,13 @@ def apply_rows(gateway, rows, dry_run=False):
     for folder, folder_rows in missing_instances.items():
         if not dry_run:
             instances = [build.udt_instance(r) for r in folder_rows]
-            if gateway.tag(folder) is None:  # a fresh gateway: create the folder together with its instances
+            if not folder:  # instances at the tag root (Weather, Meter): no folder to create
+                gateway.import_tags({"tags": instances})
+            elif gateway.tag(folder) is None:  # a fresh gateway: create the folder together with its instances
                 gateway.import_tags({"tags": [{"name": folder, "tagType": "Folder", "tags": instances}]})
             else:
                 gateway.import_tags({"tags": instances}, path=folder)
-        report.created_instances += ["%s instance %s/%s" % (verb, folder, r.device) for r in folder_rows]
+        report.created_instances += ["%s instance %s" % (verb, r.tag_path) for r in folder_rows]
     return report
 
 
