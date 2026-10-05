@@ -1,7 +1,10 @@
-"""Modbus TCP server for the Phase 1 simulator (ADR 0006, ADR 0009). Standard library only.
+"""Modbus TCP server for the Phase 1 simulator (ADR 0006, ADR 0009). The Modbus part is standard library only.
 
 Serves read-only SunSpec registers for six devices on one endpoint: inverters on units 1 to 4, the weather station on
 unit 5, and the POI meter on unit 6. A simulation thread steps the plant model once a second and swaps in fresh registers.
+
+The same process also serves the OPC UA plant controller (sim/opcua_server.py, ADR 0010) on --opcua-port when asyncua is
+installed (sim/requirements.txt); without it the Modbus server runs alone and says so.
 
     python -m sim.modbus_server --port 15020 --start 2026-06-21T18:00:00Z --seed 1
 
@@ -9,6 +12,7 @@ Answers function 3 (read holding registers) only. Reads outside a device's SunSp
 and other functions get "illegal function", and an unknown unit ID gets "gateway target failed" (0x0B).
 """
 import argparse
+import asyncio
 import random
 import socketserver
 import struct
@@ -106,10 +110,31 @@ class Server(socketserver.ThreadingTCPServer):
         self.verbose = verbose
 
 
+def start_opcua(simulation, host, port):
+    """Serve the plant controller over OPC UA in its own thread, if asyncua is installed. Returns True when started."""
+    try:
+        from sim import opcua_server
+    except ImportError:
+        log("OPC UA plant controller is OFF: asyncua is not installed (pip install -r sim/requirements.txt)")
+        return False
+    from sim.plant_controller import PlantController
+    controller = PlantController(simulation)
+
+    def run():
+        try:
+            asyncio.run(opcua_server.serve(controller, host, port, log=log))
+        except Exception as error:  # for example the port is already in use
+            log("OPC UA plant controller stopped: %r" % (error,))
+
+    threading.Thread(target=run, daemon=True).start()
+    return True
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=15020)
+    parser.add_argument("--opcua-port", type=int, default=14840, help="OPC UA plant controller port; 0 turns it off")
     parser.add_argument("--start", default=None, help="simulated start time, UTC, e.g. 2026-06-21T18:00:00Z (default: now)")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--no-clouds", action="store_true")
@@ -121,6 +146,8 @@ def main(argv=None):
     simulation = Simulation(SiteConfig(seed=args.seed, clouds_enabled=not args.no_clouds))
     simulation.tick(start, 0.0)  # registers exist before the first client connects
     threading.Thread(target=simulation.run_forever, args=(start,), daemon=True).start()
+    if args.opcua_port:
+        start_opcua(simulation, args.host, args.opcua_port)
     server = Server((args.host, args.port), lambda unit: simulation.registers.get(unit), args.verbose)
     log("simulator serving units %s on %s:%d, simulated start %s, seed %d"
         % (sorted(simulation.registers), args.host, args.port, start.strftime("%Y-%m-%d %H:%M:%SZ"), args.seed))

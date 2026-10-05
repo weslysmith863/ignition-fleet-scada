@@ -227,6 +227,52 @@
       ]
     },
     {
+      "name": "PlantController",
+      "tagType": "UdtType",
+      "tags": [
+        {
+          "dataType": "Float8",
+          "name": "ActivePowerLimit_MW",
+          "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.ActivePowerLimit_MW",
+          "opcServer": "PlantController",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
+          "dataType": "Boolean",
+          "name": "LimitActive",
+          "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.LimitActive",
+          "opcServer": "PlantController",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
+          "dataType": "Boolean",
+          "name": "LimitEnable",
+          "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.LimitEnable",
+          "opcServer": "PlantController",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
+          "dataType": "Float8",
+          "name": "POI_MW",
+          "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.POI_MW",
+          "opcServer": "PlantController",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
+          "dataType": "String",
+          "name": "Status",
+          "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.Status",
+          "opcServer": "PlantController",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        }
+      ]
+    },
+    {
       "name": "Weather",
       "parameters": {
         "Device": {

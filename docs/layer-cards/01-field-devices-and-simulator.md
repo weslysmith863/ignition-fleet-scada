@@ -87,8 +87,9 @@ behavior, tracker mechanics, wind, shading and soiling, degradation. The ILR of 
 
 - **Gateway to simulator:** site1 opens Modbus TCP connections to the `sim` service by name, one Modbus device per
   inverter, with the unit ID inside each tag address (finding 13). A separate OPC UA client connection reads and writes
-  the plant controller nodes. Port numbers are set when the simulator is built; port 5020 is taken by the native
-  DosingControl gateway (CLAUDE.md).
+  the plant controller nodes. Modbus is on port 15020 and OPC UA on 14840 (ADR 0010); port 5020 is taken by the
+  native DosingControl gateway (CLAUDE.md). Until the simulator runs as a container, the gateway reaches the
+  simulator on the PC as `host.docker.internal`, not by the `sim` service name.
 - **Simulator to gateway:** it never calls the gateway. It only answers.
 - **Clock:** real time by default, so gateway timestamps and simulator time agree; an accelerated mode is demo-only
   (ADR 0006).
