@@ -10,6 +10,7 @@ import urllib.request
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 GATEWAYS = {"hub": (8090, "HUB_API_TOKEN"), "site1": (8091, "SITE1_API_TOKEN")}
 DEVICE_TYPE = "com.inductiveautomation.opcua/device"
+DATABASE_TYPE = "ignition/database-connection"
 PROVIDER = "default"
 
 
@@ -17,7 +18,8 @@ class GatewayError(RuntimeError):
     pass
 
 
-def _api_key(variable):
+def env_value(variable):
+    """A value from the gitignored .env. Callers must never print it."""
     for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
         match = re.match(r"\s*%s\s*=(.*)$" % re.escape(variable), line)
         if match:
@@ -32,7 +34,7 @@ class RestGateway:
         port, variable = GATEWAYS[site]
         self.site = site
         self._base = "http://127.0.0.1:%d/data/api/v1" % port
-        self._key = _api_key(variable)
+        self._key = env_value(variable)
 
     def _call(self, method, path, body=None, content_type="application/json", allow_404=False):
         data = None
@@ -81,6 +83,27 @@ class RestGateway:
             if time.monotonic() >= deadline:
                 return False
             time.sleep(poll_s)
+
+    def encrypt(self, plain_text):
+        """Turn a plain value into an embedded secret only this gateway can read (finding 8). The result goes into a resource
+        config in place of the plain value, so the config can be stored and exported without exposing it. The route returns
+        the five encrypted fields bare; a resource wants them wrapped as {"type": "Embedded", "data": ...} (finding 27)."""
+        request = urllib.request.Request(self._base + "/encryption/encrypt", data=plain_text.encode("utf-8"), method="POST",
+                                         headers={"X-Ignition-API-Token": self._key, "Content-Type": "text/plain"})
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return {"type": "Embedded", "data": json.loads(response.read().decode("utf-8"))}
+        except urllib.error.HTTPError as error:
+            raise GatewayError("POST /encryption/encrypt -> HTTP %d" % error.code)  # the body could echo the secret: not shown
+        except urllib.error.URLError as error:
+            raise GatewayError("cannot reach the %s gateway: %s" % (self.site, error.reason))
+
+    def database_connection(self, name):
+        """The database connection resource, or None when it does not exist."""
+        return self._call("GET", "/resources/find/%s/%s" % (DATABASE_TYPE, urllib.parse.quote(name)), allow_404=True)
+
+    def create_database_connection(self, body):
+        return self._call("POST", "/resources/" + DATABASE_TYPE, [body])
 
     def tag(self, path):
         """One tag, folder, or UDT instance without its children, or None. A missing path answers with tagType
