@@ -1,0 +1,119 @@
+# Layer Card 3: Fleet and templating
+
+Status: written 2026-10-06, **before the build**. It describes the design settled in
+[ADR 0014](../adr/0014-phase2-fleet-shape-simulators-oem-reads-inheritance-battery.md), so each claim says whether it is built,
+planned, or still to verify. Phase 1 evidence is in [the Phase 1 findings](../spikes/phase1-findings.md); the layer below this one
+is [Layer Card 1](01-field-devices-and-simulator.md) and the one beside it is [Layer Card 2](02-site-views.md).
+
+## Why this layer exists
+
+One site is a build. Eight sites is a system, and it only stays manageable if a site is data and not hand work. This layer turns
+a short points list into a running fleet: devices and tags on each gateway, a hub that sees every site, and projects written
+once and inherited by all. It owns the points list, the generator, the tag providers on the hub, and the project structure. It
+owns no plant data of its own; every number still comes from a device.
+
+## The pieces and the vocabulary
+
+| Term | What it is here |
+|---|---|
+| **Fleet** | All eight sites together. |
+| **Site gateway** | An Ignition gateway that runs one plant next to its equipment: `site1` and, in this phase, `site2`. |
+| **Hub** | The gateway that sees the whole fleet: fleet views, and later the enterprise links. |
+| **OEM-integrated site** | A plant whose own equipment vendor runs the on-site control system. The owner's hub reads its data directly. Six of the eight sites, `oem1` to `oem6`. Here they are simulated and read over Modbus (an approximation, ADR 0014). |
+| **Points list** | A CSV with one row per device, not per tag: site, device, kind, unit ID, host, port, rating. `points/site1.csv` is the first. |
+| **Generator** | The Python 3 tooling in `generator/` that reads the points list and builds devices and tag instances through the REST API. It reports differences and never overwrites hand-built objects. |
+| **UDT and instance** | A UDT is the template for one kind of thing (an inverter); an instance is one real inverter. The template takes **parameters** such as the unit ID, so one definition serves every site. |
+| **Tag provider** | A named collection of tags on a gateway, written `[name]` at the start of a path. Every site gateway's own tags are in `[default]`. |
+| **Remote tag provider** | A provider on the hub that points at another gateway's provider. The hub holds no copy; it asks the site. |
+| **Realtime tag provider (hub's own)** | A provider whose tags the hub itself reads from its own devices. The OEM sites use one each. |
+| **Project inheritance** | A child project reuses the views, scripts, and styles of a parent project, so shared pieces exist once. |
+| **BESS, PCS, SoC** | A battery energy storage system; its power conversion system (the battery's inverter); and its state of charge (how full it is, as a percentage). Primer part 2 defines them properly before the model is built. |
+
+## Shape
+
+```mermaid
+flowchart LR
+  CSV["points lists<br>one row per device"] --> GEN["generator<br>REST API"]
+  GEN -->|"devices, instances"| S1["site1 gateway"]
+  GEN -->|"devices, instances"| S2["site2 gateway"]
+  GEN -->|"devices, instances<br>one provider per OEM site"| HUB["hub gateway<br>fleet project"]
+  SIM1["sim"] -->|"Modbus, OPC UA"| S1
+  SIM2["sim2"] -->|"Modbus, OPC UA"| S2
+  OEM["oem1 to oem6"] -->|"Modbus"| HUB
+  S1 -->|"Gateway Network<br>remote provider site1"| HUB
+  S2 -->|"Gateway Network<br>remote provider site2"| HUB
+  HUB -->|"page per session"| BR["Browser"]
+```
+
+## What exists today and what is planned
+
+| Piece | State |
+|---|---|
+| Points list, `apply`, `export_types`, `connections`, `deploy_project`, `retarget` | Built (Phase 1) |
+| Site 1, the Gateway Network link to the hub (site1 on the hub's whitelist) | Built |
+| UDT import; PlantController connection, instance, and `Historian` provider in the generator | Planned |
+| `site2` gateway, `sim2`, a Site 2 points file | Planned (needs Wes's license and key steps) |
+| Remote tag providers `site1` and `site2` on the hub | Planned; Wes hand-builds the first one |
+| `core`, `site`, `fleet` projects | Planned |
+| Six OEM sites: `oem1` to `oem6` and their providers | Planned |
+| Battery model | Planned, after primer part 2 |
+| Simulator support for other than four inverters | Planned; fails today (ADR 0014, Checked) |
+
+## How a site is made from a row
+
+1. A row such as `site1,Inv3,inverter,3,sim,15020,1250` says which device, which unit ID, where the simulator is, and its rating.
+2. The generator creates the Modbus device first and waits until it is healthy, then creates the instance of the Inverter UDT
+   with that unit ID and rating as parameters. Devices come first because a tag that subscribes before its device is healthy can
+   stay on `Bad_NodeIdUnknown` until restarted (finding 26).
+3. It compares what is on the gateway with the list and reports differences. It does not repair or delete them.
+4. A new site is a new points file. Site 2 differs from Site 1 in rows (six inverters), not in tooling.
+5. For an OEM site the target changes: the devices go on the hub, and the tags go in a provider named for the site. That is a
+   new generator rule, the `site` column mapping to a gateway and a provider (planned).
+
+## How the hub sees the fleet
+
+1. **Site gateways.** The site dials the hub over the Gateway Network, and the hub accepts only gateways on its whitelist
+   (`GATEWAY_NETWORK_WHITELIST: site1,site2`). That check is separate from SSL, which is off locally (ADR 0004).
+2. **Remote providers.** On the hub, `site1` points at site1's `default` provider. Site 1's inverter power is
+   `[site1]Inverters/Inv1/ACPower_kW`; the hub holds nothing. To verify: that the hub's name can differ from the site's `default`.
+3. **OEM sites.** The hub's own Modbus devices read the plants directly, and each plant's tags sit in a provider such as `oem3`,
+   so the path shape matches. To verify: that the REST API can create those providers and Maker allows six.
+4. **Fleet views.** A view takes a site ID and builds the path, the same idea as the InverterCard's `{inverter}` placeholder.
+   To verify when the first fleet view is built: that an indirect binding can fill the provider name and not only a folder.
+
+## How projects are shared
+
+```mermaid
+flowchart TB
+  CORE["core<br>Header, InverterCard, Kpi,<br>styles, path script"]
+  SITE["site<br>Overview, Trends, Controller"]
+  FLEET["fleet<br>fleet overview, site detail"]
+  CORE --> SITE
+  CORE --> FLEET
+```
+
+`core` is marked inheritable; `site` and `fleet` name it as their parent in `project.json`. Each gateway holds `core` and its own
+child: site gateways get `site`, the hub gets `fleet`. To verify: that a parent must live on the same gateway as its child, which
+would make `deploy_project` run once per gateway and project. The repo copy is still the source of truth, so a deploy with
+`--overwrite` replaces Designer edits (Layer Card 2).
+
+## How it fails (and what we do about it)
+
+These are expected failures from the design, not yet observed.
+
+| What you see | Likely cause | Where to look |
+|---|---|---|
+| A site's provider is missing or bad on the hub | The Gateway Network link is down, or the site is not on the whitelist | Hub Gateway Network page; `GATEWAY_NETWORK_WHITELIST` |
+| A new gateway starts with `code=4 License in use` | A leftover lease after a volume wipe | Regenerate that license's token in the account portal |
+| A device faults on a new site | The simulator for that site is not running, or the `host` in the points list is wrong | `docker.exe compose ps`; the points file |
+| Fewer inverters than the points list, or the simulator errors | The plant shape in the simulator's settings disagrees with the points list (and, until decision 9 is built, more than four inverters fails) | The simulator's environment settings; its log |
+| Tags stay on `Bad_NodeIdUnknown` | They subscribed before the device was healthy | Restart Tag in Designer |
+| A child project has blank pages or missing views | The parent project is not on that gateway | The gateway's project list |
+| A fleet view shows the wrong site | The site ID parameter or path is wrong | The view's bindings |
+
+## What it does not model or protect
+
+No alarms or downtime handling (Phase 3). The OEM sites are read over Modbus, which approximates how an owner receives vendor
+data. The battery is a simplified AC-coupled model with no temperature, degradation, or automatic dispatch (ADR 0014). The
+Gateway Network is plaintext and the simulators have no security, as in Phase 1. There is no per-user access control on the
+fleet views.
