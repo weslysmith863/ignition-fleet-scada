@@ -1,9 +1,11 @@
-"""The plant controller's five OPC UA nodes as plain Python (ADR 0007, decision 5). Standard library only.
+"""The plant controller's six OPC UA nodes as plain Python (ADR 0007, decision 5; RatedMW added in Phase 2). Standard library only.
 
 The OPC UA server (sim/opcua_server.py) is a thin front for this class: it publishes `readings()` and passes written
 setpoints to `command()`. The behavior lives here so it can be tested without an OPC UA library.
 
-Nodes: ActivePowerLimit_MW (write), LimitEnable (write), LimitActive (read), POI_MW (read), Status (read).
+Nodes: ActivePowerLimit_MW (write), LimitEnable (write), LimitActive (read), POI_MW (read), Status (read), RatedMW (read).
+RatedMW is the plant's AC rating. Unlike ActivePowerLimit_MW, which rests at the rating while no limit is set but moves with
+one, it never changes, so a screen can use it as the scale for the limit and for the plant output.
 Reactive power is not modeled; the plant runs at unity power factor (approximated, ADR 0007).
 """
 import math
@@ -28,7 +30,7 @@ class PlantController:
         return self.limit_mw, self.enabled
 
     def readings(self):
-        """The values of all five nodes, from the latest simulation tick.
+        """The values of all six nodes, from the latest simulation tick.
 
         LimitActive is true only while the limit is actually reducing output: an enabled limit above what the plant
         could produce changes nothing. That is what separates curtailment from clipping. Status is a design choice:
@@ -48,4 +50,5 @@ class PlantController:
             "LimitActive": limit_active,
             "POI_MW": poi_mw,
             "Status": status,
+            "RatedMW": self.rated_mw,
         }

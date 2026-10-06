@@ -116,62 +116,23 @@
                   "relativeWeight": 1
                 }
               ],
-              "pens": [
-                {
-                  "name": "Inv1",
-                  "axis": "kW",
-                  "plot": 0,
-                  "data": {
-                    "source": "[default]Inverters/Inv1/ACPower_kW",
-                    "aggregateMode": "default"
-                  }
-                },
-                {
-                  "name": "Inv2",
-                  "axis": "kW",
-                  "plot": 0,
-                  "data": {
-                    "source": "[default]Inverters/Inv2/ACPower_kW",
-                    "aggregateMode": "default"
-                  }
-                },
-                {
-                  "name": "Inv3",
-                  "axis": "kW",
-                  "plot": 0,
-                  "data": {
-                    "source": "[default]Inverters/Inv3/ACPower_kW",
-                    "aggregateMode": "default"
-                  }
-                },
-                {
-                  "name": "Inv4",
-                  "axis": "kW",
-                  "plot": 0,
-                  "data": {
-                    "source": "[default]Inverters/Inv4/ACPower_kW",
-                    "aggregateMode": "default"
-                  }
-                },
-                {
-                  "name": "Plant output",
-                  "axis": "MW",
-                  "plot": 1,
-                  "data": {
-                    "source": "[default]Meter/POI_MW",
-                    "aggregateMode": "default"
-                  }
-                },
-                {
-                  "name": "Sunlight on panels",
-                  "axis": "Wm2",
-                  "plot": 2,
-                  "data": {
-                    "source": "[default]Weather/POA_Wm2",
-                    "aggregateMode": "default"
-                  }
+              "pens": []
+            },
+            "propConfig": {
+              "props.pens": {
+                "binding": {
+                  "type": "expr",
+                  "config": {
+                    "expression": "1"
+                  },
+                  "transforms": [
+                    {
+                      "type": "script",
+                      "code": "\tresults = system.tag.browse(\"[default]Inverters\").getResults()\n\tnames = sorted([str(r[\"name\"]) for r in results], key=lambda n: (len(n), n))\n\tpens = [{\"name\": n, \"axis\": \"kW\", \"plot\": 0, \"data\": {\"source\": \"[default]Inverters/%s/ACPower_kW\" % n, \"aggregateMode\": \"default\"}} for n in names]\n\tpens.append({\"name\": \"Plant output\", \"axis\": \"MW\", \"plot\": 1, \"data\": {\"source\": \"[default]Meter/POI_MW\", \"aggregateMode\": \"default\"}})\n\tpens.append({\"name\": \"Sunlight on panels\", \"axis\": \"Wm2\", \"plot\": 2, \"data\": {\"source\": \"[default]Weather/POA_Wm2\", \"aggregateMode\": \"default\"}})\n\treturn pens"
+                    }
+                  ]
                 }
-              ]
+              }
             }
           }
         ]

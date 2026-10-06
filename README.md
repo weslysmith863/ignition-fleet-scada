@@ -34,10 +34,11 @@ simulator, Ignition tags and templates, history in PostgreSQL, and browser scree
   connection (encrypted password) and the SQL Historian provider, deploys projects, and retargets device hosts.
 - **History**: SQL Historian on PostgreSQL, with sampling choices recorded in an ADR.
 - **Screens** (`projects/site/`): Overview, Trends (a chart that reads the historian), and a Controller page that writes the
-  plant limit and shows curtailment. They are Perspective project files deployed with one command.
+  plant limit and shows curtailment. They are Perspective project files deployed with one command, and the same files serve
+  every site gateway (the inverter list comes from the tags).
 - **Documentation**: 14 architecture decision records, four layer cards, a domain primer, and findings logs of what the
   experiments showed, including the mistakes.
-- **Tests**: 242 automated tests (97 simulator, 145 generator and tooling), standard library only.
+- **Tests**: 250 automated tests (98 simulator, 152 generator and tooling), standard library only.
 
 ## What it demonstrates
 
@@ -56,7 +57,7 @@ docker compose up -d --build  # hub, site1, postgres, and the sim container
 ```
 
 Then there is first-time setup on a fresh gateway. Only the first step is manual; each of the others is a tool that reports
-before it changes anything. They have each been tested, but not yet run in sequence on an empty gateway:
+before it changes anything. They rebuilt site2 from an empty gateway in this order on 2026-10-06 (Phase 2 finding 51):
 
 1. In each gateway's web page, create a security level `API_RW`, allow it under *Gateway Write Permissions*, and create an API
    key that holds it. Put the tokens in `.env` (`HUB_API_TOKEN`, `SITE1_API_TOKEN`). See `docs/adr/0005`.
@@ -85,8 +86,8 @@ These are deliberate for a local, single-machine project, and each is written do
   shared deployment.
 - **Simulated data**: the code labels what is modeled, approximated, or not modeled (Layer Card 1). Fixed-tilt panels, no
   trackers, no reactive power, no wind.
-- **Not run end to end yet**: the setup steps above are each tested, but a rebuild of an empty gateway through all of them has
-  not been done. The security level and API key stay manual.
+- **Manual steps**: the license token, the `API_RW` security level, the write permission, and the API key. Everything else was
+  rebuilt from an empty gateway by the tools (finding 51).
 - **One site**. The fleet, the hub's fleet views, alarms, and the battery are later phases.
 
 ## Repo layout

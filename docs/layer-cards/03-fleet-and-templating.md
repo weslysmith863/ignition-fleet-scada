@@ -53,12 +53,13 @@ flowchart LR
 | Site 1, the Gateway Network link to the hub (site1 on the hub's whitelist) | Built |
 | UDT import (`generator.import_types`) | Built 2026-10-06; tried on a scratch provider (findings 42 to 44) |
 | PlantController connection and instance (a `plantcontroller` row; `generator.apply`) and the `Historian` provider (`generator.connections`) | Built 2026-10-06; tried on scratch objects (findings 45 to 47) and reported unchanged against site1 |
-| The whole rebuild run in sequence on an empty gateway | Planned: Site 2's first build is the rehearsal |
-| Site 2 files: `site2` and `sim2` in compose, `points/site2.csv`, `.env.example` names, a fleet consistency test | Written 2026-10-06; nothing started yet |
-| `site2` gateway running (license, `.env` values, API level and key, hub whitelist) | Planned: needs Wes's account-portal and gateway-page steps |
+| The whole rebuild run in sequence on an empty gateway | Done on site2, 2026-10-06 (finding 51) |
+| Site 2 files: `site2` and `sim2` in compose, `points/site2.csv`, `.env.example` names, a fleet consistency test | Built and running 2026-10-06 |
+| `site2` gateway running (license, `.env` values, API level and key, hub whitelist) | Running 2026-10-06; devices, types, instances, historian, and the hub's remote provider built by the generator (finding 51) |
 | Remote tag provider `site1` on the hub | Built by hand 2026-10-06; REST creation of a remote provider works (findings 36 to 38) |
 | Remote tag provider `site2` on the hub | Built by `generator.providers` 2026-10-06 (finding 50) |
-| `core`, `site`, `fleet` projects | Planned |
+| The `site` project, unchanged, on both site gateways (inverter list from a tag browse, header from the system name) | Built 2026-10-06 (finding 52) |
+| `core`, `site`, `fleet` projects with inheritance | Planned |
 | Six OEM sites: `oem1` to `oem6` and their providers | Planned |
 | Battery model | Planned, after primer part 2 |
 | Simulator plant shape from `--inverters`, `--inverter-kw`, `--seed` or `SIM_INVERTERS`, `SIM_INVERTER_KW`, `SIM_SEED`, with unit IDs by inverter count | Built 2026-10-06 (tests, and a 6-inverter run read over Modbus); the `sim2` container that uses it is still planned |

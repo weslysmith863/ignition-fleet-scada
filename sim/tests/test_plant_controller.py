@@ -23,13 +23,22 @@ class PlantControllerTests(unittest.TestCase):
         simulation.tick(NOON_JUNE, 1.0)
         controller = PlantController(simulation)
         nodes = controller.readings()
+        self.assertEqual(nodes["RatedMW"], 7.5)
         self.assertEqual(nodes["ActivePowerLimit_MW"], 7.5)
         self.assertAlmostEqual(nodes["POI_MW"], 7.5, places=3)
+
+    def test_the_rating_does_not_move_when_a_limit_is_set_so_screens_can_use_it_as_the_scale(self):
+        simulation, controller = make(NOON_JUNE)
+        controller.command(2.0, True)
+        simulation.tick(NOON_JUNE, 1.0)
+        nodes = controller.readings()
+        self.assertEqual((nodes["RatedMW"], nodes["ActivePowerLimit_MW"]), (5.0, 2.0))
 
     def test_an_untouched_controller_reports_the_plant_unrestricted(self):
         _, controller = make(NOON_JUNE)
         nodes = controller.readings()
-        self.assertEqual(set(nodes), {"ActivePowerLimit_MW", "LimitEnable", "LimitActive", "POI_MW", "Status"})
+        self.assertEqual(set(nodes), {"ActivePowerLimit_MW", "LimitEnable", "LimitActive", "POI_MW", "Status", "RatedMW"})
+        self.assertEqual(nodes["RatedMW"], 5.0)
         self.assertEqual(nodes["ActivePowerLimit_MW"], 5.0)
         self.assertFalse(nodes["LimitEnable"])
         self.assertFalse(nodes["LimitActive"])

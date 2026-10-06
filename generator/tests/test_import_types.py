@@ -30,7 +30,7 @@ class FakeGateway:
         for item in payload["tags"]:
             if policy == "Abort" and item["name"] in self.types:
                 raise GatewayError("collision on %s" % item["name"])
-            self.types[item["name"]] = copy.deepcopy(item)
+            self.types[item["name"]] = copy.deepcopy(item)  # "Overwrite" replaces the whole definition
 
 
 class NormalizingGateway(FakeGateway):
@@ -129,6 +129,65 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual(report.created, ["Weather"])
         self.assertTrue(report.drift)
         self.assertTrue(all(line.startswith("after import: Weather/") for line in report.drift))
+
+
+class ReplaceTests(unittest.TestCase):
+    """--replace NAME: the one way a type that already exists is changed, and only when it is named."""
+
+    def hand_edited(self, name):
+        node = copy.deepcopy(by_name(name))
+        node["tags"].append({"name": "Extra", "tagType": "AtomicTag"})  # a member the saved file does not have
+        return node
+
+    def test_a_named_type_that_differs_is_replaced_and_read_back(self):
+        gateway = FakeGateway([self.hand_edited("Inverter"), by_name("Meter"), by_name("Weather"), by_name("PlantController")])
+        report = import_types.import_types(gateway, WANTED, apply=True, replace=["Inverter"])
+        self.assertEqual(report.replaced, ["Inverter"])
+        self.assertEqual(report.drift, [])
+        self.assertEqual(gateway.types["Inverter"], by_name("Inverter"))
+        self.assertEqual([(p, pol) for p, _, pol in gateway.imports], [("_types_", "Overwrite")])
+        self.assertEqual(len(gateway.imports[0][1]["tags"]), 1)  # one type, never the whole folder
+
+    def test_a_dry_run_names_the_differences_and_changes_nothing(self):
+        edited = self.hand_edited("Inverter")
+        gateway = FakeGateway([edited, by_name("Meter"), by_name("Weather"), by_name("PlantController")])
+        report = import_types.import_types(gateway, WANTED, apply=False, replace=["Inverter"])
+        self.assertEqual(list(report.replacing), ["Inverter"])
+        self.assertIn("Inverter/Extra: on the gateway but not in the file", report.replacing["Inverter"])
+        self.assertEqual((report.replaced, report.drift, gateway.imports), ([], [], []))
+        self.assertEqual(gateway.types["Inverter"], edited)
+
+    def test_a_type_that_differs_but_is_not_named_is_still_only_reported(self):
+        gateway = FakeGateway([self.hand_edited("Inverter"), self.hand_edited("Weather"), by_name("Meter"), by_name("PlantController")])
+        report = import_types.import_types(gateway, WANTED, apply=True, replace=["Inverter"])
+        self.assertEqual(report.replaced, ["Inverter"])
+        self.assertTrue(any(line.startswith("Weather/") for line in report.drift))
+        self.assertIn("Extra", [m["name"] for m in gateway.types["Weather"]["tags"]])  # untouched
+
+    def test_naming_a_type_that_already_matches_changes_nothing(self):
+        gateway = FakeGateway(WANTED)
+        report = import_types.import_types(gateway, WANTED, apply=True, replace=["Inverter"])
+        self.assertEqual((report.replaced, gateway.imports), ([], []))
+        self.assertIn("Inverter", report.unchanged)
+
+    def test_naming_a_type_that_is_not_in_the_file_is_an_error(self):
+        with self.assertRaises(TypesError):
+            import_types.import_types(FakeGateway(), WANTED, apply=True, replace=["Nope"])
+
+    def test_a_missing_type_is_still_created_with_abort_even_when_named(self):
+        gateway = FakeGateway([by_name("Meter")])
+        report = import_types.import_types(gateway, WANTED, apply=True, replace=["Inverter"])
+        self.assertIn("Inverter", report.created)
+        self.assertEqual({pol for _, _, pol in gateway.imports}, {"Abort"})
+
+    def test_a_replaced_type_that_comes_back_different_is_reported(self):
+        class Normalizing(NormalizingGateway):
+            pass
+        gateway = Normalizing([self.hand_edited("Weather")] + [by_name(n) for n in ("Inverter", "Meter", "PlantController")])
+        report = import_types.import_types(gateway, WANTED, apply=True, replace=["Weather"])
+        self.assertEqual(report.replaced, ["Weather"])
+        self.assertTrue(all(line.startswith("after import: Weather/") for line in report.drift), report.drift)
+        self.assertEqual(import_types.exit_code(report), 2)
 
 
 class DriftTests(unittest.TestCase):

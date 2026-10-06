@@ -52,9 +52,11 @@ class OpcUaServerTests(unittest.IsolatedAsyncioTestCase):
         namespace = await client.get_namespace_index(opcua_server.NAMESPACE_URI)
         return client.get_node("ns=%d;s=%s.%s" % (namespace, opcua_server.OBJECT_NAME, name))
 
-    async def test_a_client_reads_all_five_nodes_with_their_types(self):
+    async def test_a_client_reads_all_six_nodes_with_their_types(self):
         async with Client(self.url) as client:
             values = {name: await (await self.node(client, name)).read_value() for name in opcua_server.VARIANT_TYPES}
+        self.assertEqual(len(values), 6)
+        self.assertEqual(values["RatedMW"], 5.0)
         self.assertEqual(values["ActivePowerLimit_MW"], 5.0)
         self.assertIs(values["LimitEnable"], False)
         self.assertIs(values["LimitActive"], False)
@@ -88,8 +90,11 @@ class OpcUaServerTests(unittest.IsolatedAsyncioTestCase):
     async def test_the_read_only_nodes_refuse_a_client_write(self):
         async with Client(self.url) as client:
             poi = await self.node(client, "POI_MW")
+            rated = await self.node(client, "RatedMW")
             with self.assertRaises(Exception):
                 await poi.write_value(1.0)
+            with self.assertRaises(Exception):
+                await rated.write_value(1.0)
 
 
 if __name__ == "__main__":

@@ -98,10 +98,20 @@
                   "shrink": 0
                 },
                 "props": {
-                  "text": "Set the most the plant may deliver at the point of interconnection, in MW (0 to 5), then switch the limit on. The simulator applies it within a couple of seconds.",
+                  "text": "Set the most the plant may deliver at the point of interconnection, in MW, then switch the limit on. The simulator applies it within a couple of seconds.",
                   "style": {
                     "color": "#5f6b76",
                     "fontSize": "13px"
+                  }
+                },
+                "propConfig": {
+                  "props.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "\"Set the most the plant may deliver at the point of interconnection, in MW (0 to \" + numberFormat({[default]PlantController/RatedMW}, '0.0') + \"), then switch the limit on. The simulator applies it within a couple of seconds.\""
+                      }
+                    }
                   }
                 }
               },
@@ -117,8 +127,7 @@
                 "props": {
                   "format": "0.00",
                   "inputBounds": {
-                    "minimum": 0,
-                    "maximum": 5
+                    "minimum": 0
                   },
                   "spinner": {
                     "enabled": true,
@@ -136,6 +145,15 @@
                         "mode": "direct",
                         "tagPath": "[default]PlantController/ActivePowerLimit_MW",
                         "bidirectional": true
+                      }
+                    }
+                  },
+                  "props.inputBounds.maximum": {
+                    "binding": {
+                      "type": "tag",
+                      "config": {
+                        "mode": "direct",
+                        "tagPath": "[default]PlantController/RatedMW"
                       }
                     }
                   }

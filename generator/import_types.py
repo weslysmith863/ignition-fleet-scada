@@ -11,6 +11,10 @@ right. Each missing type is imported on its own with the collision policy Abort,
 type cannot overwrite it. After an import the types are read back and compared again, because a gateway can store a definition
 differently from how it was sent (Phase 1 finding 22).
 
+The one exception is `--replace TYPE`, which a person adds on purpose to send a changed definition to a gateway: a named type
+that differs is shown (every difference listed), and with --apply replaced by the file's version, that one type only, then read
+back. A type that differs and is not named is still only reported.
+
 Exit code 0 means the gateway matches the file, 2 means differences were found, 1 means an error. A saved type that embeds or
 extends another type is refused: the tool does not order imports by dependency yet, and none of ours needs it.
 """
@@ -36,6 +40,8 @@ class Report:
     created: list = field(default_factory=list)  # of those, the ones this run imported
     unchanged: list = field(default_factory=list)
     drift: list = field(default_factory=list)  # readable lines, one per difference
+    replacing: dict = field(default_factory=dict)  # named with --replace and different: {type name: its differences}
+    replaced: list = field(default_factory=list)  # of those, the ones this run replaced
 
 
 def parse_types(exported):
@@ -109,8 +115,14 @@ def _types_on(gateway):
     return {node["name"]: node for node in exported.get("tags", [])}
 
 
-def import_types(gateway, wanted, apply=False):
+def import_types(gateway, wanted, apply=False, replace=()):
+    """Create the missing types. A type that exists is only compared, unless its name is in `replace`: then, with apply, it is
+    replaced by the file's version (collision policy Overwrite, that one type only) and read back."""
     report = Report()
+    by_name = {node["name"]: node for node in wanted}
+    unknown = sorted(set(replace) - set(by_name))
+    if unknown:
+        raise TypesError("--replace names types that are not in the file: %s" % ", ".join(unknown))
     found = _types_on(gateway)
     for node in wanted:
         existing = found.get(node["name"])
@@ -118,11 +130,19 @@ def import_types(gateway, wanted, apply=False):
             report.missing.append(node["name"])
             continue
         problems = type_drift(node, existing)
-        report.drift += problems
         if not problems:
             report.unchanged.append(node["name"])
+        elif node["name"] in replace:
+            report.replacing[node["name"]] = problems
+        else:
+            report.drift += problems
     if apply:
-        by_name = {node["name"]: node for node in wanted}
+        for name in report.replacing:
+            try:
+                gateway.import_tags({"tags": [by_name[name]]}, path=TYPES_PATH, policy="Overwrite")
+            except GatewayError as error:
+                raise GatewayError("replacing type %s failed: %s" % (name, error))
+            report.replaced.append(name)
         for name in report.missing:
             try:
                 gateway.import_tags({"tags": [by_name[name]]}, path=TYPES_PATH, policy="Abort")
@@ -130,9 +150,9 @@ def import_types(gateway, wanted, apply=False):
                 raise GatewayError("importing type %s failed (created before it: %s): %s"
                                    % (name, ", ".join(report.created) or "nothing", error))
             report.created.append(name)
-        if report.created:
+        if report.created or report.replaced:
             after = _types_on(gateway)
-            for name in report.created:
+            for name in report.created + report.replaced:
                 problems = ["%s: missing on the gateway" % name] if name not in after else type_drift(by_name[name], after[name])
                 report.drift += ["after import: " + line for line in problems]
     return report
@@ -148,6 +168,8 @@ def main(argv=None):
     parser.add_argument("--file", help="saved definitions (default: gateway/<site>/udt-types.json)")
     parser.add_argument("--provider", default="default", help="tag provider to import into (default: default)")
     parser.add_argument("--apply", action="store_true", help="create the missing types; without it nothing is changed")
+    parser.add_argument("--replace", action="append", default=[], metavar="TYPE",
+                        help="also replace this type if it differs from the file (repeat for more); never replaces an unnamed type")
     args = parser.parse_args(argv)
     path = args.file or pathlib.Path(ROOT) / "gateway" / args.site / "udt-types.json"
     try:
@@ -155,21 +177,25 @@ def main(argv=None):
             raise TypesError("%s has no saved types file of its own; use --file gateway/site1/udt-types.json to give it "
                              "another site's definitions" % args.site)
         wanted = load_types(path)
-        report = import_types(RestGateway(args.site, provider=args.provider), wanted, apply=args.apply)
+        report = import_types(RestGateway(args.site, provider=args.provider), wanted, apply=args.apply, replace=args.replace)
     except (TypesError, GatewayError) as error:
         print("error: %s" % error, file=sys.stderr)
         return 1
     print("== %s [%s] from %s ==" % (args.site, args.provider, path))
     for name in report.missing:
         print("  %s type %s" % ("created" if name in report.created else "would create", name))
+    for name, lines in report.replacing.items():
+        print("  %s type %s (%d differences)" % ("replaced" if name in report.replaced else "would replace", name, len(lines)))
+        for line in lines[:MAX_DRIFT_LINES]:
+            print("      %s" % line)
     for name in report.unchanged:
         print("  unchanged: type %s" % name)
     for line in report.drift[:MAX_DRIFT_LINES]:
         print("  DRIFT: %s" % line)
     if len(report.drift) > MAX_DRIFT_LINES:
         print("  DRIFT: ... and %d more" % (len(report.drift) - MAX_DRIFT_LINES))
-    if report.missing and not args.apply:
-        print("  (nothing changed; add --apply to create the missing types)")
+    if (report.missing or report.replacing) and not args.apply:
+        print("  (nothing changed; add --apply to make these changes)")
     return exit_code(report)
 
 

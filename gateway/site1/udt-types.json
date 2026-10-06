@@ -275,6 +275,14 @@
           "valueSource": "opc"
         },
         {
+          "dataType": "Float8",
+          "name": "RatedMW",
+          "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.RatedMW",
+          "opcServer": "PlantController",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
           "dataType": "String",
           "name": "Status",
           "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.Status",

@@ -240,20 +240,23 @@
               "style": {
                 "gap": "16px"
               },
-              "instances": [
-                {
-                  "inverter": "Inv1"
-                },
-                {
-                  "inverter": "Inv2"
-                },
-                {
-                  "inverter": "Inv3"
-                },
-                {
-                  "inverter": "Inv4"
+              "instances": []
+            },
+            "propConfig": {
+              "props.instances": {
+                "binding": {
+                  "type": "expr",
+                  "config": {
+                    "expression": "1"
+                  },
+                  "transforms": [
+                    {
+                      "type": "script",
+                      "code": "\tresults = system.tag.browse(\"[default]Inverters\").getResults()\n\tnames = sorted([str(r[\"name\"]) for r in results], key=lambda n: (len(n), n))\n\treturn [{\"inverter\": n} for n in names]"
+                    }
+                  ]
                 }
-              ]
+              }
             }
           },
           {

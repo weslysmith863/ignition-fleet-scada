@@ -45,8 +45,11 @@ flowchart LR
    `numberFormat({[default]Meter/POI_MW}, '0.00') + ' MW'`. The gateway subscribes to that tag for the session and pushes each
    change to the browser. `[default]` is the tag provider, the same name on every site gateway (D25).
 2. **Per-inverter cards.** `InverterCard` has a parameter `inverter`. Its custom properties are bound to
-   `[default]Inverters/{inverter}/ACPower_kW` and the like, with `{inverter}` filled from the parameter. The Overview gives the
-   repeater a list, `Inv1` to `Inv4`, and gets four cards from one view.
+   `[default]Inverters/{inverter}/ACPower_kW` and the like, with `{inverter}` filled from the parameter. The repeater's list is
+   not typed in: a script transform browses the tags under `[default]Inverters` when the page loads and returns one entry for
+   each inverter instance, so the same project gives four cards on a four-inverter site and six on a six-inverter one (Phase 2
+   finding 52). The Trends pens and the header (the gateway's own name, from `[System]Gateway/SystemName`) work the same way, and
+   the Controller's limit range comes from the plant controller's `RatedMW` node.
 3. **History.** The Power Chart pens name tags. For a tag with history on, the chart asks that tag's storage provider
    (`Historian`) for the last 30 minutes, then keeps adding live points.
 4. **Writes.** The numeric field and the switch on the Controller page are bound in both directions to

@@ -1,6 +1,6 @@
 """OPC UA server for the plant controller (ADR 0007 decision 5, ADR 0010). Needs asyncua (sim/requirements.txt).
 
-Publishes the five nodes of sim.plant_controller.PlantController under an object named PlantController. The node IDs are
+Publishes the six nodes of sim.plant_controller.PlantController under an object named PlantController. The node IDs are
 text: ns=2;s=PlantController.POI_MW and so on, where the namespace index follows the namespace URI below. Clients write
 ActivePowerLimit_MW and LimitEnable; the server applies them to the plant controller and writes the accepted values back.
 
@@ -22,6 +22,7 @@ VARIANT_TYPES = {
     "LimitActive": ua.VariantType.Boolean,
     "POI_MW": ua.VariantType.Double,
     "Status": ua.VariantType.String,
+    "RatedMW": ua.VariantType.Double,
 }
 
 

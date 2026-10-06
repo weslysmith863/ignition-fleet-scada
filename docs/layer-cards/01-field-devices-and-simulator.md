@@ -37,7 +37,7 @@ flowchart LR
     PCM["plant controller model<br>power limit"] --> INV
     INV --> MET["POI meter model"]
     MB["Modbus TCP server<br>inverters: units 1 to 4<br>weather station, meter"]
-    OPC["OPC UA server<br>plant controller, 5 nodes"]
+    OPC["OPC UA server<br>plant controller, 6 nodes"]
   end
   SITE1["site1 gateway"]
   SITE1 -->|"Modbus TCP, one device per inverter"| MB
@@ -55,8 +55,8 @@ flowchart LR
   which are read-only mirrors in Phase 1), the weather station on unit 5 (models 302, 303, 307), and the POI meter on
   unit 6 (model 203). Details are in [ADR 0009](../adr/0009-phase1-weather-meter-layouts-unit-ids-inverter-details.md)
   and the generated [register map](../points/site1-register-map.md).
-- The five plant controller nodes: `ActivePowerLimit_MW` and `LimitEnable` (write), `LimitActive`, `POI_MW`, and
-  `Status` (read).
+- The six plant controller nodes: `ActivePowerLimit_MW` and `LimitEnable` (write), `LimitActive`, `POI_MW`, `Status`, and
+  `RatedMW` (read; the plant's AC rating, added in Phase 2 as the scale for the limit).
 - Enforcing an accepted power limit by capping inverter output, so curtailment shows up in the data.
 
 ## The physics chain

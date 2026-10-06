@@ -1,6 +1,6 @@
 {
-  "title": "Site 1",
-  "description": "Site 1 Perspective views, built as files and deployed through the REST API (ADR 0012)",
+  "title": "Site",
+  "description": "Site Perspective views, the same files for every site gateway, deployed through the REST API (ADR 0012)",
   "enabled": true,
   "inheritable": false,
   "parent": ""
