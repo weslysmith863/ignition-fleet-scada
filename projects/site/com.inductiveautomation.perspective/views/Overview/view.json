@@ -1,0 +1,280 @@
+{
+  "custom": {},
+  "params": {},
+  "props": {
+    "defaultSize": {
+      "width": 1100,
+      "height": 700
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "style": {
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.view",
+        "meta": {
+          "name": "Header"
+        },
+        "position": {
+          "basis": "auto",
+          "shrink": 0
+        },
+        "props": {
+          "path": "Header",
+          "useDefaultViewHeight": true
+        }
+      },
+      {
+        "type": "ia.container.flex",
+        "meta": {
+          "name": "Content"
+        },
+        "position": {
+          "grow": 1
+        },
+        "props": {
+          "direction": "column",
+          "style": {
+            "padding": "20px",
+            "gap": "16px"
+          }
+        },
+        "children": [
+          {
+            "type": "ia.container.flex",
+            "meta": {
+              "name": "KpiRow"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "direction": "row",
+              "style": {
+                "gap": "16px"
+              }
+            },
+            "children": [
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "PlantOutput"
+                },
+                "position": {
+                  "grow": 1,
+                  "basis": "0"
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Plant output",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "numberFormat({[default]Meter/POI_MW}, '0.00') + ' MW'"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "Sunlight"
+                },
+                "position": {
+                  "grow": 1,
+                  "basis": "0"
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Sunlight on the panels",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "numberFormat({[default]Weather/POA_Wm2}, '#,##0') + ' W/m²'"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "Status"
+                },
+                "position": {
+                  "grow": 1,
+                  "basis": "0"
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Plant status",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "tag",
+                      "config": {
+                        "mode": "direct",
+                        "tagPath": "[default]PlantController/Status"
+                      }
+                    }
+                  },
+                  "props.params.accent": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "switch({[default]PlantController/Status}, 'Curtailed', '#c77700', 'Standby', '#6b7782', '#2e7d32')"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "Curtailment"
+                },
+                "position": {
+                  "grow": 1,
+                  "basis": "0"
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Power limit",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "if({[default]PlantController/LimitActive}, 'Limiting output', 'None active')"
+                      }
+                    }
+                  },
+                  "props.params.accent": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "if({[default]PlantController/LimitActive}, '#c77700', '#2e7d32')"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "InvertersTitle"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Inverters",
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "16px",
+                "fontWeight": "600"
+              }
+            }
+          },
+          {
+            "type": "ia.display.flex-repeater",
+            "meta": {
+              "name": "Inverters"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "path": "InverterCard",
+              "direction": "row",
+              "useDefaultViewWidth": false,
+              "useDefaultViewHeight": true,
+              "elementPosition": {
+                "grow": 1,
+                "shrink": 1,
+                "basis": "0"
+              },
+              "style": {
+                "gap": "16px"
+              },
+              "instances": [
+                {
+                  "inverter": "Inv1"
+                },
+                {
+                  "inverter": "Inv2"
+                },
+                {
+                  "inverter": "Inv3"
+                },
+                {
+                  "inverter": "Inv4"
+                }
+              ]
+            }
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Footnote"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Simulated data from a Python plant model. Personal learning project on Ignition Maker Edition.",
+              "style": {
+                "color": "#5f6b76",
+                "fontSize": "12px"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

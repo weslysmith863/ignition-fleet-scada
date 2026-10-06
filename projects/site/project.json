@@ -1,0 +1,7 @@
+{
+  "title": "Site 1",
+  "description": "Site 1 Perspective views, built as files and deployed through the REST API (ADR 0012)",
+  "enabled": true,
+  "inheritable": false,
+  "parent": ""
+}

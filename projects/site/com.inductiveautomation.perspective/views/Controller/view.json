@@ -1,0 +1,317 @@
+{
+  "custom": {},
+  "params": {},
+  "props": {
+    "defaultSize": {
+      "width": 1100,
+      "height": 700
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "style": {
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.view",
+        "meta": {
+          "name": "Header"
+        },
+        "position": {
+          "basis": "auto",
+          "shrink": 0
+        },
+        "props": {
+          "path": "Header",
+          "useDefaultViewHeight": true
+        }
+      },
+      {
+        "type": "ia.container.flex",
+        "meta": {
+          "name": "Content"
+        },
+        "position": {
+          "grow": 1
+        },
+        "props": {
+          "direction": "row",
+          "alignItems": "flex-start",
+          "style": {
+            "padding": "20px",
+            "gap": "16px"
+          }
+        },
+        "children": [
+          {
+            "type": "ia.container.flex",
+            "meta": {
+              "name": "SetpointCard"
+            },
+            "position": {
+              "grow": 1,
+              "basis": "0"
+            },
+            "props": {
+              "direction": "column",
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #d7dde3",
+                "borderRadius": "8px",
+                "padding": "16px 20px",
+                "gap": "14px"
+              }
+            },
+            "children": [
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "SetpointTitle"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Active power limit",
+                  "style": {
+                    "color": "#1b2733",
+                    "fontSize": "16px",
+                    "fontWeight": "600"
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "SetpointHelp"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Set the most the plant may deliver at the point of interconnection, in MW (0 to 5), then switch the limit on. The simulator applies it within a couple of seconds.",
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "13px"
+                  }
+                }
+              },
+              {
+                "type": "ia.input.numeric-entry-field",
+                "meta": {
+                  "name": "LimitMW"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "format": "0.00",
+                  "inputBounds": {
+                    "minimum": 0,
+                    "maximum": 5
+                  },
+                  "spinner": {
+                    "enabled": true,
+                    "increment": 0.5
+                  },
+                  "style": {
+                    "fontSize": "20px"
+                  }
+                },
+                "propConfig": {
+                  "props.value": {
+                    "binding": {
+                      "type": "tag",
+                      "config": {
+                        "mode": "direct",
+                        "tagPath": "[default]PlantController/ActivePowerLimit_MW",
+                        "bidirectional": true
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.input.toggle-switch",
+                "meta": {
+                  "name": "LimitEnable"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "label": {
+                    "text": "Limit enabled",
+                    "position": "right"
+                  }
+                },
+                "propConfig": {
+                  "props.selected": {
+                    "binding": {
+                      "type": "tag",
+                      "config": {
+                        "mode": "direct",
+                        "tagPath": "[default]PlantController/LimitEnable",
+                        "bidirectional": true
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "SetpointNote"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Development only: this page has no login and writes straight to the simulator's OPC UA server (ADR 0012).",
+                  "style": {
+                    "color": "#8a5a00",
+                    "fontSize": "12px"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "ia.container.flex",
+            "meta": {
+              "name": "Readbacks"
+            },
+            "position": {
+              "grow": 1,
+              "basis": "0"
+            },
+            "props": {
+              "direction": "column",
+              "style": {
+                "gap": "16px"
+              }
+            },
+            "children": [
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "PlantOutput"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Plant output",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "numberFormat({[default]Meter/POI_MW}, '0.00') + ' MW'"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "LimitActive"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Is the limit cutting output?",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "if({[default]PlantController/LimitActive}, 'Yes, curtailing', 'No')"
+                      }
+                    }
+                  },
+                  "props.params.accent": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "if({[default]PlantController/LimitActive}, '#c77700', '#2e7d32')"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "Status"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Plant status",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "tag",
+                      "config": {
+                        "mode": "direct",
+                        "tagPath": "[default]PlantController/Status"
+                      }
+                    }
+                  },
+                  "props.params.accent": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "switch({[default]PlantController/Status}, 'Curtailed', '#c77700', 'Standby', '#6b7782', '#2e7d32')"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

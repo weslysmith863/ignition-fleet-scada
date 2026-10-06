@@ -1,0 +1,109 @@
+{
+  "custom": {},
+  "params": {
+    "title": "",
+    "text": "",
+    "accent": "#1b2733"
+  },
+  "propConfig": {
+    "params.title": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.text": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.accent": {
+      "paramDirection": "input",
+      "persistent": true
+    }
+  },
+  "props": {
+    "defaultSize": {
+      "width": 240,
+      "height": 96
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "justify": "center",
+      "style": {
+        "backgroundColor": "#ffffff",
+        "border": "1px solid #d7dde3",
+        "borderRadius": "8px",
+        "padding": "12px 16px"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Title"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#5f6b76",
+            "fontSize": "12px",
+            "textTransform": "uppercase",
+            "letterSpacing": "0.04em"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.title"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Value"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "28px",
+            "fontWeight": "600"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.text"
+              }
+            }
+          },
+          "props.style.color": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.accent"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

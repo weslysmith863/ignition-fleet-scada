@@ -25,7 +25,10 @@ every layer and direct an agent to rebuild the system.
   does; the agent ran them all in Phase 0.
 - **Hand-build the new, generate the repeated.** Wes hand-builds the first instance of each pattern (device, UDT
   definition, instance). Once a pattern is understood, the points-list generator makes the repetition. It never
-  overwrites or deletes hand-built objects.
+  overwrites or deletes hand-built objects. Exception, decided by Wes on 2026-10-05: he has practiced Perspective views
+  (DosingControl) and would rather watch what the API can do, so the agent builds the views as project files in the
+  repo and deploys them through the REST API. Wes reviews them in a browser and is still quizzed on how a view gets its
+  data, how history reaches a chart, and how the project is deployed.
 - **Predict, then look.** Before showing live values or output, ask Wes to predict them in his own words; it surfaces
   misunderstandings early.
 - **Put settings that matter in the prose,** not only in a table column. A Data Type column was missed once and silently

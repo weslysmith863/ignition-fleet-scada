@@ -1,0 +1,195 @@
+{
+  "custom": {
+    "power": 0,
+    "state": "",
+    "frequency": 0
+  },
+  "params": {
+    "inverter": "Inv1"
+  },
+  "propConfig": {
+    "params.inverter": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "custom.power": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[default]Inverters/{inverter}/ACPower_kW",
+          "references": {
+            "inverter": "{view.params.inverter}"
+          }
+        }
+      }
+    },
+    "custom.state": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[default]Inverters/{inverter}/State",
+          "references": {
+            "inverter": "{view.params.inverter}"
+          }
+        }
+      }
+    },
+    "custom.frequency": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[default]Inverters/{inverter}/Frequency_Hz",
+          "references": {
+            "inverter": "{view.params.inverter}"
+          }
+        }
+      }
+    }
+  },
+  "props": {
+    "defaultSize": {
+      "width": 260,
+      "height": 150
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "justify": "space-between",
+      "style": {
+        "backgroundColor": "#ffffff",
+        "border": "1px solid #d7dde3",
+        "borderRadius": "8px",
+        "padding": "12px 16px"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Name"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#5f6b76",
+            "fontSize": "12px",
+            "textTransform": "uppercase",
+            "letterSpacing": "0.04em"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.inverter"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Power"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "28px",
+            "fontWeight": "600"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "numberFormat({view.custom.power}, '#,##0') + ' kW'"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "State"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#ffffff",
+            "fontSize": "12px",
+            "fontWeight": "600",
+            "padding": "2px 10px",
+            "borderRadius": "10px",
+            "width": "fit-content"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "{view.custom.state}"
+              }
+            }
+          },
+          "props.style.backgroundColor": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "switch({view.custom.state}, 'MPPT', '#2e7d32', 'Throttled', '#c77700', 'Fault', '#b3261e', '#6b7782')"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Frequency"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#5f6b76",
+            "fontSize": "12px"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "numberFormat({view.custom.frequency}, '0.00') + ' Hz'"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

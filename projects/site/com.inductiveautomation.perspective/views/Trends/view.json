@@ -1,0 +1,181 @@
+{
+  "custom": {},
+  "params": {},
+  "props": {
+    "defaultSize": {
+      "width": 1100,
+      "height": 700
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "style": {
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.view",
+        "meta": {
+          "name": "Header"
+        },
+        "position": {
+          "basis": "auto",
+          "shrink": 0
+        },
+        "props": {
+          "path": "Header",
+          "useDefaultViewHeight": true
+        }
+      },
+      {
+        "type": "ia.container.flex",
+        "meta": {
+          "name": "Content"
+        },
+        "position": {
+          "grow": 1
+        },
+        "props": {
+          "direction": "column",
+          "style": {
+            "padding": "20px",
+            "gap": "12px"
+          }
+        },
+        "children": [
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Title"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Output and sunlight, last 30 minutes",
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "16px",
+                "fontWeight": "600"
+              }
+            }
+          },
+          {
+            "type": "ia.chart.powerchart",
+            "meta": {
+              "name": "PowerChart"
+            },
+            "position": {
+              "grow": 1
+            },
+            "props": {
+              "config": {
+                "mode": "realtime",
+                "unitOfTime": 30,
+                "measureOfTime": "minutes",
+                "refreshRate": 5000
+              },
+              "axes": [
+                {
+                  "name": "kW",
+                  "position": "left",
+                  "label": {
+                    "text": "Inverter output (kW)"
+                  }
+                },
+                {
+                  "name": "MW",
+                  "position": "left",
+                  "label": {
+                    "text": "Plant output (MW)"
+                  }
+                },
+                {
+                  "name": "Wm2",
+                  "position": "left",
+                  "label": {
+                    "text": "Sunlight (W/m2)"
+                  }
+                }
+              ],
+              "plots": [
+                {
+                  "relativeWeight": 2
+                },
+                {
+                  "relativeWeight": 1
+                },
+                {
+                  "relativeWeight": 1
+                }
+              ],
+              "pens": [
+                {
+                  "name": "Inv1",
+                  "axis": "kW",
+                  "plot": 0,
+                  "data": {
+                    "source": "[default]Inverters/Inv1/ACPower_kW",
+                    "aggregateMode": "default"
+                  }
+                },
+                {
+                  "name": "Inv2",
+                  "axis": "kW",
+                  "plot": 0,
+                  "data": {
+                    "source": "[default]Inverters/Inv2/ACPower_kW",
+                    "aggregateMode": "default"
+                  }
+                },
+                {
+                  "name": "Inv3",
+                  "axis": "kW",
+                  "plot": 0,
+                  "data": {
+                    "source": "[default]Inverters/Inv3/ACPower_kW",
+                    "aggregateMode": "default"
+                  }
+                },
+                {
+                  "name": "Inv4",
+                  "axis": "kW",
+                  "plot": 0,
+                  "data": {
+                    "source": "[default]Inverters/Inv4/ACPower_kW",
+                    "aggregateMode": "default"
+                  }
+                },
+                {
+                  "name": "Plant output",
+                  "axis": "MW",
+                  "plot": 1,
+                  "data": {
+                    "source": "[default]Meter/POI_MW",
+                    "aggregateMode": "default"
+                  }
+                },
+                {
+                  "name": "Sunlight on panels",
+                  "axis": "Wm2",
+                  "plot": 2,
+                  "data": {
+                    "source": "[default]Weather/POA_Wm2",
+                    "aggregateMode": "default"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -98,6 +98,29 @@ class RestGateway:
         except urllib.error.URLError as error:
             raise GatewayError("cannot reach the %s gateway: %s" % (self.site, error.reason))
 
+    def project(self, name):
+        """The project's details, or None when it does not exist."""
+        return self._call("GET", "/projects/find/%s" % urllib.parse.quote(name), allow_404=True)
+
+    def import_project(self, name, zip_bytes, overwrite=False):
+        """Import a project zip (project.json at its root). Without overwrite, an existing project of that name is refused."""
+        query = urllib.parse.urlencode({"overwrite": "true"}) if overwrite else ""
+        path = "/projects/import/%s%s" % (urllib.parse.quote(name), "?" + query if query else "")
+        request = urllib.request.Request(self._base + path, data=zip_bytes, method="POST",
+                                         headers={"X-Ignition-API-Token": self._key, "Content-Type": "application/zip"})
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                body = response.read().decode("utf-8")
+                return json.loads(body) if body.strip() else {}
+        except urllib.error.HTTPError as error:
+            raise GatewayError("POST %s -> HTTP %d: %s" % (path, error.code, error.read()[:300].decode(errors="replace")))
+        except urllib.error.URLError as error:
+            raise GatewayError("cannot reach the %s gateway: %s" % (self.site, error.reason))
+
+    def scan_projects(self):
+        """Ask the gateway to rescan project files (a project imported through the API is picked up by itself, but a scan is cheap)."""
+        return self._call("POST", "/scan/projects")
+
     def database_connection(self, name):
         """The database connection resource, or None when it does not exist."""
         return self._call("GET", "/resources/find/%s/%s" % (DATABASE_TYPE, urllib.parse.quote(name)), allow_404=True)
