@@ -1,52 +1,115 @@
 # Fleet SCADA on Ignition 8.3: Solar + BESS Fleet Platform
 
 > **Personal learning project built on Ignition Maker Edition (non-commercial).**
-> Not a product, not a customer deployment. All devices and sites are simulated.
+> Not a product, not a customer deployment. Every device and site is simulated, and the numbers are illustrative.
+> Ignition is a trademark of Inductive Automation. This project is not affiliated with or endorsed by Inductive Automation.
 
-A fleet-scale SCADA platform for simulated utility-scale solar + battery storage (BESS) sites, built on
-Inductive Automation's Ignition 8.3 and designed the way an integrator would: many sites generated from
-templates and a points list, a hub gateway for the fleet view, Python and SQL underneath, and the data
-feeding enterprise systems. Everything is Git-native (Ignition 8.3 stores config and projects as JSON files)
-and runs from Docker Compose.
+A SCADA platform for simulated utility-scale solar and battery storage (BESS) sites, built on Inductive Automation's
+Ignition 8.3 and designed the way an integrator would: sites generated from templates and a points list, Python and SQL
+underneath, and everything stored as files in Git and deployed through the gateway's REST API. It runs from Docker Compose.
 
-**Status:** Phase 0 (spikes and skeleton). See the phase plan below.
+## Status
+
+**Phase 1 of 4 (one site end to end) is built and working.** One simulated 5 MW solar plant runs end to end: a Python
+simulator, Ignition tags and templates, history in PostgreSQL, and browser screens.
+
+| Phase | Goal | State |
+|---|---|---|
+| 0 | Spikes and skeleton: hub reads a tag from a site gateway | Done |
+| 1 | One site end to end | **Built** (gate review in progress) |
+| 2 | Fleet and templating: 8 sites from one points list, a battery model | Planned |
+| 3 | Operations layer: alarms, downtime, Event Streams, fault scenarios | Planned |
+| 4 | Admin tooling, CI, commissioning docs, showcase | Planned |
+
+## What works today
+
+- **Simulator** (`sim/`, Python 3): sun position, seeded clouds, module temperature, inverter clipping, a plant-level power
+  limit, and a revenue meter. It serves SunSpec Modbus TCP for four inverters, a weather station, and a meter (port 15020), and
+  an OPC UA plant controller (port 14840), from one process and one clock. Runs as the `sim` container.
+- **Ignition tag model**: four UDT templates (Inverter, Weather, Meter, PlantController), with Modbus scale factors handled by
+  expressions and the OPC UA values arriving in engineering units.
+- **Points-list generator** (`generator/`, standard library only): reads `points/site1.csv` and creates the Modbus devices and UDT
+  instances through the REST API. It never overwrites, reports drift, and creates devices before instances.
+  It also creates the PostgreSQL connection with an encrypted password, deploys projects, and retargets device hosts.
+- **History**: SQL Historian on PostgreSQL, with sampling choices recorded in an ADR.
+- **Screens** (`projects/site/`): Overview, Trends (a chart that reads the historian), and a Controller page that writes the
+  plant limit and shows curtailment. They are Perspective project files deployed with one command.
+- **Documentation**: 13 architecture decision records, three layer cards, a domain primer, and a findings log of what the
+  experiments showed, including the mistakes.
+- **Tests**: 142 automated tests (84 simulator, 58 generator), standard library only.
 
 ## What it demonstrates
 
-- Hub + site gateway architecture over the Gateway Network, with store-and-forward
-- UDT / template-driven tag model generated from a points-list CSV
-- Modbus TCP and OPC UA field connectivity against a realistic Python simulator with scripted fault scenarios
-- Alarm strategy (priority pipelines, shelving), downtime reason codes
-- Event Streams integrations to a mock CMMS and SQL; historian with scheduled export to S3-compatible storage
-- Gateway administration automation through the Ignition 8.3 REST API
-- CI for a SCADA repo; commissioning documentation (points list, FAT plan, runbook)
-
-## Phases
-
-| Phase | Goal |
-|---|---|
-| 0 | Spikes and skeleton: hub reads one tag from a site gateway |
-| 1 | One site end to end |
-| 2 | Fleet and templating: 8 sites from one CSV |
-| 3 | Operations layer: alarms, downtime, Event Streams, export, fault scenarios |
-| 4 | Admin tooling, CI, commissioning docs, showcase |
-
-## Repo layout (planned)
-
-```
-docs/layer-cards/   one card per layer: why it exists, what it owns, how it talks to its neighbors
-docs/adr/           architecture decision records
-docs/spikes/        what each time-boxed experiment found
-spikes/phase0/      throwaway sample project exported from a gateway (reference only)
-docker-compose.yml  the stack: hub gateway, site1 gateway, PostgreSQL
-.env.example        copy to .env (gitignored) and fill in
-```
+Hub and site gateway architecture, UDT and template-driven tag models, Modbus TCP and OPC UA connectivity against a realistic
+simulator, solar domain concepts (clipping versus curtailment, plane-of-array irradiance, point of interconnection), SQL
+historian, secrets kept out of Git, Git-native project files, and gateway administration through the REST API.
 
 ## Quick start
 
-Filled in at the end of Phase 0.
+You need Docker Desktop, Python 3, and an [Ignition Maker Edition](https://inductiveautomation.com/ignition/maker-edition)
+account with licenses for the gateways (one key and one activation token each).
+
+```
+copy .env.example .env        # then fill in the values; .env is gitignored and never committed
+docker compose up -d --build  # hub, site1, postgres, and the sim container
+```
+
+Then there is first-time setup on a fresh gateway that is **manual** today (the automation for it is on the list below):
+
+1. In each gateway's web page, create a security level `API_RW`, allow it under *Gateway Write Permissions*, and create an API
+   key that holds it. Put the tokens in `.env` (`HUB_API_TOKEN`, `SITE1_API_TOKEN`). See `docs/adr/0005`.
+2. `python -m generator.connections site1` creates the PostgreSQL connection `fleetdb` with an encrypted password.
+3. In site1's Config pages, create a SQL Historian provider named `Historian` on `fleetdb`.
+4. Create the four UDT definitions (their exported form is `gateway/site1/udt-types.json`; there is no importer yet), the
+   OPC UA connection `PlantController` to `opc.tcp://sim:14840/fleet-scada/sim` (security None), and the `PlantController` instance.
+5. `python -m generator.apply points/site1.csv` creates the Modbus devices and the Inverter, Weather, and Meter instances.
+6. `python -m generator.deploy_project site1 projects/site` deploys the screens, then open
+   `http://localhost:8091/data/perspective/client/site`.
+
+`SIM_START` in `.env` pins the simulated start time (for example midday, so the plant is producing); empty means the real clock.
+
+Run the tests with `python -m unittest discover -s sim/tests -t .` and `python -m unittest discover -s generator/tests -t .`.
+The simulator's OPC UA tests need `asyncua` (`sim/requirements.txt`) and are skipped without it.
+
+## Known limits and dev-only choices
+
+These are deliberate for a local, single-machine project, and each is written down so it is not mistaken for a design.
+
+- **No security on local links**: plaintext Gateway Network and API key transport (ADR 0004), an OPC UA server with no security
+  (ADR 0010), and Perspective screens with no login that can write the plant limit (ADR 0012). All ports are bound to the
+  loopback interface. None of this is suitable for a shared deployment.
+- **Simulated data**: the code labels what is modeled, approximated, or not modeled (Layer Card 1). Fixed-tilt panels, no
+  trackers, no reactive power, no wind.
+- **Not automated yet**: importing UDT definitions, creating the OPC UA connection and its tag instance, and the historian
+  provider. A rebuilt gateway needs those steps by hand (see above).
+- **One site**. The fleet, the hub's fleet views, alarms, and the battery are later phases.
+
+## Repo layout
+
+```
+sim/                 the plant simulator: physics, Modbus server, OPC UA plant controller, Dockerfile
+generator/           points-list generator and the REST API tooling (apply, connections, deploy_project, retarget)
+points/              the points list (one row per device); the source of truth for devices and instances
+projects/site/       the Perspective project (views as files), deployed through the API
+gateway/             exported gateway state kept for reference (UDT definitions)
+docs/layer-cards/    one card per layer: why it exists, what it owns, how it talks to its neighbors
+docs/adr/            architecture decision records
+docs/spikes/         what each time-boxed experiment found
+docs/domain/         a solar plant primer and glossary
+spikes/phase0/       a throwaway sample project exported from a gateway (reference only)
+docker-compose.yml   hub gateway, site1 gateway, PostgreSQL, and the simulator
+CLAUDE.md            the working rules for the AI coding agent used on this project
+```
 
 ## Docs
 
 - [Layer Card 0: platform skeleton](docs/layer-cards/00-platform-skeleton.md)
+- [Layer Card 1: field devices and the simulator](docs/layer-cards/01-field-devices-and-simulator.md)
+- [Layer Card 2: Site 1 views](docs/layer-cards/02-site-views.md)
 - [ADR index](docs/adr/README.md)
+- [Findings from the experiments](docs/spikes/phase1-findings.md)
+- [Solar plant primer](docs/domain/01-solar-plant-primer.md)
+
+## License
+
+[MIT](LICENSE). The licenses of the dependencies and of Ignition itself are separate.
