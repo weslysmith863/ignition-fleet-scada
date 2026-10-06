@@ -57,7 +57,7 @@ flowchart LR
 | `core`, `site`, `fleet` projects | Planned |
 | Six OEM sites: `oem1` to `oem6` and their providers | Planned |
 | Battery model | Planned, after primer part 2 |
-| Simulator support for other than four inverters | Planned; fails today (ADR 0014, Checked) |
+| Simulator plant shape from `--inverters`, `--inverter-kw`, `--seed` or `SIM_INVERTERS`, `SIM_INVERTER_KW`, `SIM_SEED`, with unit IDs by inverter count | Built 2026-10-06 (tests, and a 6-inverter run read over Modbus); the `sim2` container that uses it is still planned |
 
 ## How a site is made from a row
 
@@ -106,7 +106,7 @@ These are expected failures from the design, not yet observed.
 | A site's provider is missing or bad on the hub | The Gateway Network link is down, or the site is not on the whitelist | Hub Gateway Network page; `GATEWAY_NETWORK_WHITELIST` |
 | A new gateway starts with `code=4 License in use` | A leftover lease after a volume wipe | Regenerate that license's token in the account portal |
 | A device faults on a new site | The simulator for that site is not running, or the `host` in the points list is wrong | `docker.exe compose ps`; the points file |
-| Fewer inverters than the points list, or the simulator errors | The plant shape in the simulator's settings disagrees with the points list (and, until decision 9 is built, more than four inverters fails) | The simulator's environment settings; its log |
+| Fewer inverters than the points list, or the simulator errors | The plant shape in the simulator's settings disagrees with the points list (the unit IDs follow the inverter count, so a wrong count shifts the weather station and meter) | The simulator's environment settings; the first line of its log, which names the units and the inverter count |
 | Tags stay on `Bad_NodeIdUnknown` | They subscribed before the device was healthy | Restart Tag in Designer |
 | A child project has blank pages or missing views | The parent project is not on that gateway | The gateway's project list |
 | A fleet view shows the wrong site | The site ID parameter or path is wrong | The view's bindings |

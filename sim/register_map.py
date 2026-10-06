@@ -38,10 +38,12 @@ DESIGNATOR = {
     "int16": "HR", "sunssf": "HR", "uint16": "HRUS", "enum16": "HRUS", "bitfield16": "HRUS", "acc16": "HRUS",
     "int32": "HRI", "acc32": "HRUI", "uint32": "HRUI", "enum32": "HRUI", "bitfield32": "HRUI",
 }
+CONFIG = SiteConfig()  # this document is for Site 1; other plants have other unit IDs (ADR 0014 decision 9)
+INVERTER_UNITS, WEATHER_UNIT, METER_UNIT = sunspec.unit_ids(CONFIG)
 DEVICES = (
-    ("Inverter (units 1 to 4; unit 1 shown)", 1),
-    ("Weather station (unit 5)", sunspec.WEATHER_UNIT),
-    ("POI meter (unit 6)", sunspec.METER_UNIT),
+    ("Inverter (units %d to %d; unit 1 shown)" % (INVERTER_UNITS[0], INVERTER_UNITS[-1]), 1),
+    ("Weather station (unit %d)" % WEATHER_UNIT, WEATHER_UNIT),
+    ("POI meter (unit %d)" % METER_UNIT, METER_UNIT),
 )
 
 
@@ -68,7 +70,7 @@ def point_rows(unit, models):
 
 def snapshot_models():
     state = PlantModel(SiteConfig(clouds_enabled=False)).step(datetime(2026, 6, 21, 18, 50, tzinfo=timezone.utc), 1.0)
-    return sunspec.all_device_models(state, SiteConfig(), random.Random(0), noise=False)
+    return sunspec.all_device_models(state, CONFIG, random.Random(0), noise=False)
 
 
 def main(argv=None):

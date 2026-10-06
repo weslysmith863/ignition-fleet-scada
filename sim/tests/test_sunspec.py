@@ -2,6 +2,7 @@
 import random
 import unittest
 import urllib.error
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sim import sunspec as s
@@ -104,6 +105,51 @@ class ModelChainTests(unittest.TestCase):
         except (urllib.error.URLError, OSError) as error:
             self.skipTest("offline: %s" % error)
         self.assertEqual(fetched, {k: [tuple(p) for p in v] for k, v in LAYOUTS.items()})
+
+
+def text(regs, model_id, point):
+    """A string point (such as the model name) decoded from its registers."""
+    index = s.point_index(regs, model_id, point)
+    size = next(entry[2] for entry in LAYOUTS[model_id] if entry[0] == point)
+    data = b"".join(bytes([r >> 8, r & 0xFF]) for r in regs[index:index + size])
+    return data.rstrip(b"\x00").decode("ascii")
+
+
+class UnitIdTests(unittest.TestCase):
+    """ADR 0014 decision 9: inverters are units 1 to N, then the weather station, then the meter."""
+
+    def test_site_1_keeps_its_units(self):
+        self.assertEqual(s.unit_ids(SiteConfig()), ((1, 2, 3, 4), 5, 6))
+
+    def test_units_follow_the_inverter_count(self):
+        self.assertEqual(s.unit_ids(replace(SiteConfig(), inverters=6)), ((1, 2, 3, 4, 5, 6), 7, 8))
+
+    def test_a_six_inverter_plant_serves_eight_devices(self):
+        config = replace(CLEAR, inverters=6)
+        state = PlantModel(config).step(NOON, 1.0)
+        regs = s.all_registers(state, config, random.Random(0), noise=False)
+        self.assertEqual(sorted(regs), list(range(1, 9)))
+        for unit in range(1, 7):
+            self.assertIsNotNone(s.find_model(regs[unit], 103), unit)
+            self.assertIsNotNone(s.find_model(regs[unit], 123), unit)
+        for model_id in (302, 303, 307):
+            self.assertIsNotNone(s.find_model(regs[7], model_id))
+        self.assertIsNotNone(s.find_model(regs[8], 203))
+        self.assertIsNone(s.find_model(regs[8], 103))
+
+    def test_the_meter_of_a_six_inverter_plant_reads_its_rating_at_clear_noon(self):
+        config = replace(CLEAR, inverters=6)
+        state = PlantModel(config).step(NOON, 1.0)
+        regs = s.all_registers(state, config, random.Random(0), noise=False)
+        self.assertEqual(signed(value(regs[8], 203, "W")) * 1000, 7_500_000)  # six inverters of 1.25 MW, clipped
+
+    def test_the_inverter_model_name_follows_the_rating(self):
+        _, regs = registers_at(NOON)
+        self.assertEqual(text(regs[1], 1, "Md"), "SIM-INV-1250")
+        config = replace(CLEAR, inverter_ac_w=1.0e6)
+        state = PlantModel(config).step(NOON, 1.0)
+        other = s.all_registers(state, config, random.Random(0), noise=False)
+        self.assertEqual(text(other[1], 1, "Md"), "SIM-INV-1000")
 
 
 class ServedValueTests(unittest.TestCase):

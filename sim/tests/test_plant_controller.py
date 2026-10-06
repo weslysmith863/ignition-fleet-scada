@@ -18,6 +18,14 @@ def make(when):
 
 
 class PlantControllerTests(unittest.TestCase):
+    def test_the_rating_follows_the_inverter_count(self):
+        simulation = Simulation(SiteConfig(clouds_enabled=False, inverters=6), noise=False)
+        simulation.tick(NOON_JUNE, 1.0)
+        controller = PlantController(simulation)
+        nodes = controller.readings()
+        self.assertEqual(nodes["ActivePowerLimit_MW"], 7.5)
+        self.assertAlmostEqual(nodes["POI_MW"], 7.5, places=3)
+
     def test_an_untouched_controller_reports_the_plant_unrestricted(self):
         _, controller = make(NOON_JUNE)
         nodes = controller.readings()

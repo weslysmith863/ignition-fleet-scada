@@ -3,11 +3,13 @@ import socket
 import struct
 import threading
 import unittest
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 from sim import sunspec
 from sim.model import SiteConfig
-from sim.modbus_server import Server, Simulation, resolve_start
+from sim.modbus_server import Server, Simulation, plant_config, resolve_start
 
 NOON = datetime(2026, 6, 21, 18, 50, tzinfo=timezone.utc)
 CLEAR = SiteConfig(clouds_enabled=False)
@@ -109,6 +111,45 @@ class SimulationTests(unittest.TestCase):
                 sim.tick(NOON + timedelta(seconds=second), 1.0)
             return sim.registers
         self.assertEqual(run(2), run(2))
+
+
+def arguments(**given):
+    values = {"inverters": None, "inverter_kw": None, "seed": None, "no_clouds": False}
+    values.update(given)
+    return SimpleNamespace(**values)
+
+
+class PlantConfigTests(unittest.TestCase):
+    """ADR 0014 decision 3: the plant's shape comes from settings, so a second container can be a different plant."""
+    SETTINGS = {"SIM_INVERTERS": "6", "SIM_INVERTER_KW": "1250", "SIM_SEED": "7"}
+
+    def test_nothing_given_means_site_1(self):
+        self.assertEqual(plant_config(arguments(), {}), SiteConfig())
+
+    def test_settings_shape_the_plant(self):
+        config = plant_config(arguments(), self.SETTINGS)
+        self.assertEqual((config.inverters, config.inverter_ac_w, config.seed), (6, 1.25e6, 7))
+
+    def test_arguments_win_over_settings(self):
+        config = plant_config(arguments(inverters=2, inverter_kw=800.0, seed=3), self.SETTINGS)
+        self.assertEqual((config.inverters, config.inverter_ac_w, config.seed), (2, 8.0e5, 3))
+
+    def test_empty_settings_count_as_not_set(self):
+        self.assertEqual(plant_config(arguments(), {"SIM_INVERTERS": "", "SIM_INVERTER_KW": "  ", "SIM_SEED": ""}), SiteConfig())
+
+    def test_the_no_clouds_flag_turns_clouds_off(self):
+        self.assertFalse(plant_config(arguments(no_clouds=True), {}).clouds_enabled)
+
+    def test_values_the_register_map_cannot_hold_are_errors_not_silent_clamps(self):
+        for given in ({"SIM_INVERTERS": "0"}, {"SIM_INVERTERS": "246"}, {"SIM_INVERTERS": "many"},
+                      {"SIM_INVERTER_KW": "0"}, {"SIM_INVERTER_KW": "2001"}, {"SIM_SEED": "x"}):
+            with self.assertRaises(ValueError, msg=str(given)):
+                plant_config(arguments(), given)
+
+    def test_a_six_inverter_simulation_serves_inverters_weather_and_meter(self):
+        sim = Simulation(replace(CLEAR, inverters=6))
+        sim.tick(NOON, 1.0)
+        self.assertEqual(sorted(sim.registers), list(range(1, 9)))
 
 
 class StartTimeTests(unittest.TestCase):

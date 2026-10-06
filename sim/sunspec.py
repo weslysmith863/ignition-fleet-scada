@@ -21,9 +21,13 @@ NOT_IMPLEMENTED = {
 }
 
 ST_OFF, ST_SLEEPING, ST_STARTING, ST_MPPT, ST_THROTTLED = 1, 2, 3, 4, 5  # SunSpec model 103 operating states
-INVERTER_UNITS = (1, 2, 3, 4)
-WEATHER_UNIT = 5
-METER_UNIT = 6
+
+
+def unit_ids(config):
+    """(inverter units, weather unit, meter unit) for a plant (ADR 0014 decision 9): inverters are units 1 to N, the weather
+    station is N+1, and the meter is N+2. Site 1 (N = 4) keeps its units 1 to 4, 5, and 6 (ADR 0009)."""
+    count = config.inverters
+    return tuple(range(1, count + 1)), count + 1, count + 2
 
 
 def raw(value, sf):
@@ -147,7 +151,7 @@ def inverter_models(unit, index, state, config, rng, noise=True):
         "WMaxLimPct_WinTms": 0, "WMaxLimPct_RvrtTms": 0, "WMaxLimPct_RmpTms": 0,
         "WMaxLim_Ena": 1 if state["limit_enabled"] else 0,
     }
-    return [_common("SIM-INV-1250", unit), (103, inverter), (123, controls)]
+    return [_common("SIM-INV-%d" % int(round(rating / 1000.0)), unit), (103, inverter), (123, controls)]
 
 
 def weather_models(unit, state):
@@ -182,12 +186,12 @@ def meter_models(unit, state, rng, noise=True):
 
 def all_device_models(state, config, rng, noise=True):
     """{unit id: models} for every device on the simulator's endpoint."""
+    inverter_units, weather_unit, meter_unit = unit_ids(config)
     devices = {}
-    for index in range(config.inverters):
-        unit = INVERTER_UNITS[index]
+    for index, unit in enumerate(inverter_units):
         devices[unit] = inverter_models(unit, index, state, config, rng, noise)
-    devices[WEATHER_UNIT] = weather_models(WEATHER_UNIT, state)
-    devices[METER_UNIT] = meter_models(METER_UNIT, state, rng, noise)
+    devices[weather_unit] = weather_models(weather_unit, state)
+    devices[meter_unit] = meter_models(meter_unit, state, rng, noise)
     return devices
 
 
