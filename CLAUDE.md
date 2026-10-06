@@ -65,11 +65,14 @@ explainable.
   run or refuses without a flag, and none overwrites hand-built objects:
   `python -m generator.apply points/site1.csv [--dry-run]` creates missing devices and instances and reports drift;
   `python -m generator.export_types site1` saves the gateway's UDT definitions to `gateway/site1/udt-types.json`;
+  `python -m generator.import_types site1 [--file F] [--provider P] [--apply]` creates the saved definitions that are missing
+  (a dry run without `--apply`; it reports drift and never overwrites; a gateway with no saved file of its own takes
+  `--file gateway/site1/udt-types.json`);
   `python -m generator.connections site1` creates the `fleetdb` PostgreSQL connection (password through the encrypt route);
   `python -m generator.deploy_project site1 projects/site [--overwrite]` deploys a project folder;
   `python -m generator.retarget site1 points/site1.csv [--apply]` moves existing devices and the OPC connection to the
-  points list's host. Not built yet: UDT import, and creating the PlantController OPC connection and instance or the
-  `Historian` provider (the README Quick Start lists those as manual steps).
+  points list's host. Not built yet: creating the PlantController OPC connection and instance or the `Historian` provider
+  (the README Quick Start lists those as manual steps).
 - `projects/site/`: the Site 1 Perspective project (Overview, Trends, Controller), written as files by the agent and
   deployed with `generator.deploy_project`. The repo copy is the source of truth: a deploy with `--overwrite` replaces the
   gateway's project, including saved Designer edits, so change views in the repo files.
@@ -80,7 +83,8 @@ explainable.
 
 ## Gotchas (the reason behind each)
 - UDT definitions live in the gateway's data volume, not in a project. Export them after every edit in Designer
-  (`python -m generator.export_types site1`), or a `down -v` loses them.
+  (`python -m generator.export_types site1`), or a `down -v` loses them; `python -m generator.import_types site1 --apply`
+  puts the saved ones back.
 - The gateway's OPC UA connection `PlantController` (to `opc.tcp://sim:14840/fleet-scada/sim`, security None) and the
   PlantController tag instance live in the gateway volume too, and the generator does not create them yet (ADR 0010).
   Inside a container `127.0.0.1` is the container itself; containers reach each other by service name (`sim`, `postgres`).

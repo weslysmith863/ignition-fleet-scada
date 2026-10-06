@@ -60,8 +60,9 @@ Then there is first-time setup on a fresh gateway that is **manual** today (the 
    key that holds it. Put the tokens in `.env` (`HUB_API_TOKEN`, `SITE1_API_TOKEN`). See `docs/adr/0005`.
 2. `python -m generator.connections site1` creates the PostgreSQL connection `fleetdb` with an encrypted password.
 3. In site1's Config pages, create a SQL Historian provider named `Historian` on `fleetdb`.
-4. Create the four UDT definitions (their exported form is `gateway/site1/udt-types.json`; there is no importer yet), the
-   OPC UA connection `PlantController` to `opc.tcp://sim:14840/fleet-scada/sim` (security None), and the `PlantController` instance.
+4. `python -m generator.import_types site1 --apply` creates the four UDT definitions from `gateway/site1/udt-types.json`
+   (without `--apply` it only reports). Then create the OPC UA connection `PlantController` to
+   `opc.tcp://sim:14840/fleet-scada/sim` (security None) and the `PlantController` instance by hand.
 5. `python -m generator.apply points/site1.csv` creates the Modbus devices and the Inverter, Weather, and Meter instances.
 6. `python -m generator.deploy_project site1 projects/site` deploys the screens, then open
    `http://localhost:8091/data/perspective/client/site`.
@@ -80,8 +81,8 @@ These are deliberate for a local, single-machine project, and each is written do
   loopback interface. None of this is suitable for a shared deployment.
 - **Simulated data**: the code labels what is modeled, approximated, or not modeled (Layer Card 1). Fixed-tilt panels, no
   trackers, no reactive power, no wind.
-- **Not automated yet**: importing UDT definitions, creating the OPC UA connection and its tag instance, and the historian
-  provider. A rebuilt gateway needs those steps by hand (see above).
+- **Not automated yet**: creating the OPC UA connection and its tag instance, and the historian provider. A rebuilt gateway
+  needs those steps by hand (see above).
 - **One site**. The fleet, the hub's fleet views, alarms, and the battery are later phases.
 
 ## Repo layout

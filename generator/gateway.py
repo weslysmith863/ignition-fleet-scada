@@ -29,11 +29,12 @@ def env_value(variable):
 
 
 class RestGateway:
-    def __init__(self, site):
+    def __init__(self, site, provider=PROVIDER):
         if site not in GATEWAYS:
             raise GatewayError("no gateway is configured for site %r (known: %s)" % (site, sorted(GATEWAYS)))
         port, variable = GATEWAYS[site]
         self.site = site
+        self.provider = provider  # the tag provider the tag calls below work in; a site gateway's own tags are in default
         self._base = "http://127.0.0.1:%d/data/api/v1" % port
         self._key = env_value(variable)
 
@@ -142,18 +143,18 @@ class RestGateway:
     def tag(self, path):
         """One tag, folder, or UDT instance without its children, or None. A missing path answers with tagType
         Unknown and HTTP 200, not a 404 (Phase 1 finding 25)."""
-        query = urllib.parse.urlencode({"provider": PROVIDER, "type": "json", "path": path, "recursive": "false"})
+        query = urllib.parse.urlencode({"provider": self.provider, "type": "json", "path": path, "recursive": "false"})
         found = self._call("GET", "/tags/export?" + query)
         return None if found.get("tagType") == "Unknown" else found
 
     def export_tags(self, path):
         """The tag JSON under a path, children included. `_types_` is the folder that holds the UDT definitions."""
-        query = urllib.parse.urlencode({"provider": PROVIDER, "type": "json", "path": path})
+        query = urllib.parse.urlencode({"provider": self.provider, "type": "json", "path": path})
         return self._call("GET", "/tags/export?" + query)
 
     def import_tags(self, payload, path=None, policy="Abort"):
         """Import tag JSON. Abort means a name collision stops the import, so nothing is ever overwritten."""
-        query = {"provider": PROVIDER, "type": "json", "collisionPolicy": policy}
+        query = {"provider": self.provider, "type": "json", "collisionPolicy": policy}
         if path:
             query["path"] = path
         return self._call("POST", "/tags/import?" + urllib.parse.urlencode(query), json.dumps(payload).encode("utf-8"),
