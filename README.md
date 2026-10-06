@@ -37,7 +37,7 @@ simulator, Ignition tags and templates, history in PostgreSQL, and browser scree
   plant limit and shows curtailment. They are Perspective project files deployed with one command.
 - **Documentation**: 14 architecture decision records, four layer cards, a domain primer, and findings logs of what the
   experiments showed, including the mistakes.
-- **Tests**: 221 automated tests (97 simulator, 124 generator and tooling), standard library only.
+- **Tests**: 242 automated tests (97 simulator, 145 generator and tooling), standard library only.
 
 ## What it demonstrates
 
@@ -93,7 +93,7 @@ These are deliberate for a local, single-machine project, and each is written do
 
 ```
 sim/                 the plant simulator: physics, Modbus server, OPC UA plant controller, Dockerfile
-generator/           points-list generator and the REST API tooling (apply, connections, import_types, deploy_project, retarget)
+generator/           points-list generator and the REST API tooling (apply, connections, import_types, providers, deploy_project, retarget)
 points/              the points list (one row per device); the source of truth for devices and instances
 projects/site/       the Perspective project (views as files), deployed through the API
 gateway/             exported gateway state kept for reference (UDT definitions)

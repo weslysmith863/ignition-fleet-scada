@@ -1,0 +1,10 @@
+site,device,kind,unit_id,host,port,rated_kw
+site2,Inv1,inverter,1,sim2,15020,1250
+site2,Inv2,inverter,2,sim2,15020,1250
+site2,Inv3,inverter,3,sim2,15020,1250
+site2,Inv4,inverter,4,sim2,15020,1250
+site2,Inv5,inverter,5,sim2,15020,1250
+site2,Inv6,inverter,6,sim2,15020,1250
+site2,Weather,weather,7,sim2,15020,
+site2,Meter,meter,8,sim2,15020,
+site2,PlantController,plantcontroller,,sim2,14840,

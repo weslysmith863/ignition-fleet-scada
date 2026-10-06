@@ -1,5 +1,5 @@
-# Hub gateway, site gateway, PostgreSQL, and the plant simulator.
-# See docs/layer-cards/00-platform-skeleton.md, docs/adr/0002, 0003, and 0013.
+# Hub gateway, two site gateways, PostgreSQL, and a plant simulator for each site.
+# See docs/layer-cards/00-platform-skeleton.md, docs/adr/0002, 0003, 0013, and 0014.
 name: ignition-fleet-scada
 
 x-gateway: &gateway
@@ -24,9 +24,10 @@ services:
       # Maker leased license for this gateway (one key and token per gateway). Values live in .env only.
       IGNITION_LICENSE_KEY: ${HUB_LICENSE_KEY:-}
       IGNITION_ACTIVATION_TOKEN: ${HUB_ACTIVATION_TOKEN:-}
-      # The hub only accepts Gateway Network connections from gateways on this list.
+      # The hub only accepts Gateway Network connections from gateways on this list. The hub stores the list in its own
+      # settings, and it re-read this one when it restarted with a longer list (Phase 2 finding 48).
       GATEWAY_NETWORK_SECURITYPOLICY: SpecifiedList
-      GATEWAY_NETWORK_WHITELIST: site1
+      GATEWAY_NETWORK_WHITELIST: site1,site2
       # DEV ONLY (see docs/adr/0004): allow plaintext Gateway Network on the private Compose network.
       # Phase 0 found the SSL link fails until the site trusts the hub's self-signed certificate.
       GATEWAY_NETWORK_REQUIRESSL: "false"
@@ -58,6 +59,26 @@ services:
       # It only works if the volume was seeded by a first boot WITHOUT this line. On a brand-new volume,
       # Docker creates projects/ as root, the gateway cannot write there, and it FAULTS. See spike notes.
       # - ./ignition/projects/gitspike:/usr/local/bin/ignition/data/projects/gitspike
+
+  # The second site gateway (ADR 0014 decision 1). It needs its own Maker license: put SITE2_LICENSE_KEY and
+  # SITE2_ACTIVATION_TOKEN in .env BEFORE the first start, because the edition is fixed at a gateway's first boot and a
+  # gateway that starts without its license may need its volume wiped.
+  site2:
+    <<: *gateway
+    command: ["-n", "site2", "-m", "1024"]
+    environment:
+      <<: *gateway-env
+      IGNITION_LICENSE_KEY: ${SITE2_LICENSE_KEY:-}
+      IGNITION_ACTIVATION_TOKEN: ${SITE2_ACTIVATION_TOKEN:-}
+      GATEWAY_NETWORK_0_HOST: hub
+      # DEV ONLY (see docs/adr/0004): plaintext link to the hub's HTTP port, as for site1.
+      GATEWAY_NETWORK_0_PORT: "8088"
+      GATEWAY_NETWORK_0_ENABLESSL: "false"
+      GATEWAY_NETWORK_0_DESCRIPTION: site2 to hub
+    ports:
+      - "127.0.0.1:8092:8088"
+    volumes:
+      - site2-data:/usr/local/bin/ignition/data
 
   # Relational store: tag history, alarm journal, downtime, Event Streams output (ADR 0001, design decision D8).
   # Reachable from the gateways as postgres:5432 on the Compose network, and from this PC on localhost only.
@@ -101,8 +122,34 @@ services:
       retries: 6
       start_period: 10s
 
+  # The second plant (ADR 0014 decisions 2 and 3): the same image as sim, shaped by settings into six 1250 kW inverters
+  # (7.5 MWac) with its own cloud seed. Units 1 to 6 are the inverters, 7 the weather station, 8 the meter (decision 9). Inside
+  # its own container it listens on the same ports as sim, so site2 reaches it as sim2:15020 and sim2:14840. The ports are
+  # published on this PC's loopback as 15021 and 14841.
+  sim2:
+    build:
+      context: .
+      dockerfile: sim/Dockerfile
+    restart: unless-stopped
+    environment:
+      SIM_START: ${SIM_START:-}
+      SIM_INVERTERS: "6"
+      SIM_INVERTER_KW: "1250"
+      SIM_SEED: "2"
+      TZ: ${TZ:-America/Chicago}
+    ports:
+      - "127.0.0.1:15021:15020"
+      - "127.0.0.1:14841:14840"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; [socket.create_connection(('127.0.0.1', p), 3).close() for p in (15020, 14840)]"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
 # Named volumes keep gateway state (config, projects, license) and database files across container recreation.
 volumes:
   hub-data:
   site1-data:
+  site2-data:
   postgres-data:

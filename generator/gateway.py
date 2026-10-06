@@ -8,11 +8,12 @@ import urllib.parse
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-GATEWAYS = {"hub": (8090, "HUB_API_TOKEN"), "site1": (8091, "SITE1_API_TOKEN")}
+GATEWAYS = {"hub": (8090, "HUB_API_TOKEN"), "site1": (8091, "SITE1_API_TOKEN"), "site2": (8092, "SITE2_API_TOKEN")}
 DEVICE_TYPE = "com.inductiveautomation.opcua/device"
 DATABASE_TYPE = "ignition/database-connection"
 OPC_CONNECTION_TYPE = "ignition/opc-connection"
 HISTORIAN_TYPE = "com.inductiveautomation.historian/historian-provider"
+TAG_PROVIDER_TYPE = "ignition/tag-provider"
 PROVIDER = "default"
 
 
@@ -145,6 +146,13 @@ class RestGateway:
             if time.monotonic() >= deadline:
                 return False
             time.sleep(poll_s)
+
+    def tag_provider(self, name):
+        """The tag provider resource, or None when it does not exist."""
+        return self._call("GET", "/resources/find/%s/%s" % (TAG_PROVIDER_TYPE, urllib.parse.quote(name)), allow_404=True)
+
+    def create_tag_provider(self, body):
+        return self._call("POST", "/resources/" + TAG_PROVIDER_TYPE, [body])
 
     def historian_provider(self, name):
         """The historian provider resource, or None when it does not exist."""

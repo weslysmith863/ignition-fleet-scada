@@ -9,9 +9,9 @@ every layer and direct an agent to rebuild the system.
    (https://app.notion.com/p/3ecc8722b14881edb84cd80d6b4dd28a) and its Teach-back Log subpage. They hold the
    status, decisions, phase plan, and what Wes has and has not yet shown he understands. You are ready when you can
    state the current phase, the next three steps, and the working agreement below in your own words.
-2. Run the cold-start checklist (section 10 of that page) before touching gateways. It confirms the four containers
-   (hub, site1, postgres, sim) are healthy; Wes types the compose commands. Start everything with
-   `docker.exe compose up -d --build`.
+2. Run the cold-start checklist (section 10 of that page) before touching gateways. It confirms the containers (hub,
+   site1, postgres, sim, and once Site 2 is started, site2 and sim2) are healthy; Wes types the compose commands. Start
+   everything with `docker.exe compose up -d --build`, but not before the `SITE2_*` values are in `.env` (see the Site 2 gotcha).
 3. Check `docs/adr/` (decisions), `docs/layer-cards/` (layer explanations), and `docs/spikes/` (evidence) before
    proposing a design; the question may already be decided.
 
@@ -60,7 +60,10 @@ explainable.
   read bad. For development it can still run in its own terminal with the project's `.venv` Python (OPC UA needs `asyncua`,
   `sim/requirements.txt`): stop the container first, then
   `.\.venv\Scripts\python.exe -m sim.modbus_server --port 15020 --start <a daytime UTC time> --seed 1`. With plain `python`
-  (no `asyncua`) only Modbus runs and the log says OPC UA is off. Port 5020 is not ours (DosingControl).
+  (no `asyncua`) only Modbus runs and the log says OPC UA is off. Port 5020 is not ours (DosingControl). `sim2` is the same
+  image as a six-inverter plant (`SIM_INVERTERS`, `SIM_INVERTER_KW`, `SIM_SEED` in its compose environment; the same names
+  exist as command-line flags, ADR 0014). `generator/tests/test_fleet.py` checks that the points lists, `docker-compose.yml`,
+  and `.env.example` agree (unit IDs, ports, hosts, licenses, whitelist).
 - `generator/` and `points/site1.csv`: the points list and the REST API tooling, all standard library. Each tool is a dry
   run or refuses without a flag, and none overwrites hand-built objects:
   `python -m generator.apply points/site1.csv [--dry-run]` creates missing devices, the OPC UA connection `PlantController`
@@ -69,6 +72,8 @@ explainable.
   `python -m generator.import_types site1 [--file F] [--provider P] [--apply]` creates the saved definitions that are missing
   (a dry run without `--apply`; it reports drift and never overwrites; a gateway with no saved file of its own takes
   `--file gateway/site1/udt-types.json`);
+  `python -m generator.providers site2 [--apply]` creates the hub's remote tag provider for a site (a dry run without
+  `--apply`);
   `python -m generator.connections site1 [--dry-run]` creates the `fleetdb` PostgreSQL connection (password through the
   encrypt route) and then the SQL Historian provider `Historian`;
   `python -m generator.deploy_project site1 projects/site [--overwrite]` deploys a project folder;
@@ -99,6 +104,10 @@ explainable.
   Tag in Designer). The generator creates devices first and waits for them.
 - A gateway's edition is fixed at its first boot (`IGNITION_EDITION`); fixing a wrong one means wiping that
   gateway's volume.
+- Site 2 (`site2` and `sim2`, ports 8092, 15021, and 14841 on the PC) is defined in compose and `points/site2.csv`. Put
+  `SITE2_LICENSE_KEY` and `SITE2_ACTIVATION_TOKEN` in `.env` before the first start of `site2`: a bare `up -d` would boot it
+  unlicensed, and it may then need its volume wiped. The hub re-read its whitelist from the compose variable when it restarted
+  (finding 48); that setting is a gateway security setting, so Wes checks it.
 - Maker licenses are leased per gateway (key and token in `.env`), and Maker allows 3 active gateways. After
   `docker compose down -v`, regenerate that license's token in the account portal first, or the new container gets
   `code=4 License in use`.
