@@ -16,7 +16,7 @@ simulator, Ignition tags and templates, history in PostgreSQL, and browser scree
 | Phase | Goal | State |
 |---|---|---|
 | 0 | Spikes and skeleton: hub reads a tag from a site gateway | Done |
-| 1 | One site end to end | **Built** (gate review in progress) |
+| 1 | One site end to end | **Done** |
 | 2 | Fleet and templating: 8 sites from one points list, a battery model | Planned |
 | 3 | Operations layer: alarms, downtime, Event Streams, fault scenarios | Planned |
 | 4 | Admin tooling, CI, commissioning docs, showcase | Planned |
