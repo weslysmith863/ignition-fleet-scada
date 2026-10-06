@@ -53,7 +53,8 @@ flowchart LR
 | Site 1, the Gateway Network link to the hub (site1 on the hub's whitelist) | Built |
 | UDT import; PlantController connection, instance, and `Historian` provider in the generator | Planned |
 | `site2` gateway, `sim2`, a Site 2 points file | Planned (needs Wes's license and key steps) |
-| Remote tag providers `site1` and `site2` on the hub | Planned; Wes hand-builds the first one |
+| Remote tag provider `site1` on the hub | Built by hand 2026-10-06; REST creation of a remote provider works (findings 36 to 38) |
+| Remote tag provider `site2` on the hub | Planned (the generator can create it) |
 | `core`, `site`, `fleet` projects | Planned |
 | Six OEM sites: `oem1` to `oem6` and their providers | Planned |
 | Battery model | Planned, after primer part 2 |
@@ -75,9 +76,12 @@ flowchart LR
 1. **Site gateways.** The site dials the hub over the Gateway Network, and the hub accepts only gateways on its whitelist
    (`GATEWAY_NETWORK_WHITELIST: site1,site2`). That check is separate from SSL, which is off locally (ADR 0004).
 2. **Remote providers.** On the hub, `site1` points at site1's `default` provider. Site 1's inverter power is
-   `[site1]Inverters/Inv1/ACPower_kW`; the hub holds nothing. To verify: that the hub's name can differ from the site's `default`.
+   `[site1]Inverters/Inv1/ACPower_kW`; the hub holds nothing (the hub's disk has no `site1` tag folder, finding 37). The hub's
+   name differs from the site's `default` (finding 36). The REST tag export does not follow a remote provider (finding 39), so a
+   remote tag's value is checked in Designer or a session.
 3. **OEM sites.** The hub's own Modbus devices read the plants directly, and each plant's tags sit in a provider such as `oem3`,
-   so the path shape matches. To verify: that the REST API can create those providers and Maker allows six.
+   so the path shape matches. The REST API can create a remote provider (finding 38). To verify: that it can create the
+   `STANDARD` providers the OEM sites need, and that Maker allows six.
 4. **Fleet views.** A view takes a site ID and builds the path, the same idea as the InverterCard's `{inverter}` placeholder.
    To verify when the first fleet view is built: that an indirect binding can fill the provider name and not only a folder.
 
