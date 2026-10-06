@@ -1,4 +1,5 @@
 """Tests for generator.build: the shapes sent to the gateway."""
+import copy
 import json
 import unittest
 
@@ -24,6 +25,67 @@ HAND_BUILT_INV1 = {
     "tagType": "UdtInstance",
     "typeId": "Inverter",
 }
+
+
+PLANT_ROW = DeviceRow("site1", "PlantController", "plantcontroller", None, "sim", 14840, None)
+ENCRYPTED = {"type": "Embedded", "data": {"ciphertext": "AAAA", "iv": "BBBB"}}  # what the gateway's encrypt route returns, wrapped
+# What the hand-built PlantController connection on site1 held on 2026-10-06, without its gateway-specific encrypted key store
+# password (the generator adds one made by the target gateway). Nothing here is secret.
+HAND_BUILT_OPC_SETTINGS = {
+    "advanced": {
+        "acknowledgeTimeout": 5000, "browseOrigin": "OBJECTS_FOLDER", "connectTimeout": 5000,
+        "deprecatedDataTypeDictionarySupport": False, "maxArrayLength": 2147483647, "maxMessageSize": 33554432,
+        "maxNotificationsPerPublish": 65535, "maxPendingPublishRequests": 2, "maxPerOperation": 8192,
+        "maxReferencesPerNode": 8192, "maxStringLength": 2147483647, "requestTimeout": 60000, "sessionTimeout": 120000,
+        "timestampSource": "OPC_PREFER_SOURCE",
+    },
+    "authentication": {"authenticationType": "ANONYMOUS"},
+    "configVersion": 2,
+    "endpoint": {
+        "discoveryUrl": "opc.tcp://sim:14840/fleet-scada/sim", "endpointUrl": "opc.tcp://sim:14840/fleet-scada/sim",
+        "hostOverride": "", "securityMode": "None", "securityPolicy": "None",
+    },
+    "failover": {"discoveryUrl": "", "enabled": False, "endpointUrl": "", "hostOverride": "", "threshold": 3},
+    "keepAlive": {"failuresAllowed": 1, "interval": 15000, "timeout": 10000},
+    "security": {"certificateValidationEnabled": True, "keyStoreAlias": "client"},
+}
+
+
+class PlantControllerBuildTests(unittest.TestCase):
+    def test_a_plant_controller_instance_has_no_parameters_like_the_hand_built_one(self):
+        self.assertEqual(build.udt_instance(PLANT_ROW), {"name": "PlantController", "tagType": "UdtInstance", "typeId": "PlantController"})
+
+    def test_the_endpoint_url_comes_from_the_row(self):
+        self.assertEqual(build.opc_endpoint_url(PLANT_ROW), "opc.tcp://sim:14840/fleet-scada/sim")
+        other = DeviceRow("site2", "PlantController", "plantcontroller", None, "sim2", 14841, None)
+        self.assertEqual(build.opc_endpoint_url(other), "opc.tcp://sim2:14841/fleet-scada/sim")
+
+    def test_the_connection_body_matches_the_hand_built_connection(self):
+        body = build.opc_connection_body(PLANT_ROW, ENCRYPTED)
+        self.assertEqual(body["name"], "PlantController")  # the UDT's members name the connection, so it is fixed
+        self.assertEqual((body["collection"], body["enabled"]), ("core", True))
+        self.assertEqual(body["config"]["profile"]["type"], "com.inductiveautomation.OpcUaServerType")
+        expected = copy.deepcopy(HAND_BUILT_OPC_SETTINGS)
+        expected["security"]["keyStoreAliasPassword"] = ENCRYPTED  # the gateway cannot load its client key pair without it
+        self.assertEqual(body["config"]["settings"], expected)
+
+    def test_the_connection_body_carries_only_the_encrypted_key_store_password_never_the_plain_one(self):
+        # Phase 2 finding 45: without the key store password the connection stays unhealthy ("Unable to retrieve KeyPair").
+        text = json.dumps(build.opc_connection_body(PLANT_ROW, ENCRYPTED))
+        self.assertNotIn(build.OPC_KEY_STORE_PASSWORD, text)
+        for word in ("BEGIN", "PRIVATE", "certificatePem", "privateKeyPem"):
+            self.assertNotIn(word, text)
+
+    def test_each_body_is_a_fresh_copy_so_one_site_cannot_change_the_next(self):
+        first = build.opc_connection_body(PLANT_ROW, ENCRYPTED)
+        first["config"]["settings"]["endpoint"]["endpointUrl"] = "changed"
+        first["config"]["settings"]["advanced"]["connectTimeout"] = 1
+        first["config"]["settings"]["security"]["keyStoreAliasPassword"]["data"]["ciphertext"] = "changed"
+        second = build.opc_connection_body(PLANT_ROW, ENCRYPTED)
+        expected = copy.deepcopy(HAND_BUILT_OPC_SETTINGS)
+        expected["security"]["keyStoreAliasPassword"] = ENCRYPTED
+        self.assertEqual(second["config"]["settings"], expected)
+        self.assertEqual(ENCRYPTED["data"]["ciphertext"], "AAAA")
 
 
 class BuildTests(unittest.TestCase):

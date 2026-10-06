@@ -44,6 +44,30 @@ class FakeGateway:
         self.updates.append((resource_type, copy.deepcopy(resource)))
 
 
+PLANT = DeviceRow("site1", "PlantController", "plantcontroller", None, NEW, 14840, None)
+
+
+class PlantControllerRowTests(unittest.TestCase):
+    """The plant controller row names the OPC UA host; it is not a Modbus device and is never looked up as one."""
+
+    def test_a_plant_controller_row_is_not_treated_as_a_modbus_device(self):
+        stray = device_at(DeviceRow("site1", "PlantController", "meter", 9, OLD, 15020, None), OLD)  # a Modbus device that shares the name
+        gateway = FakeGateway([device_at(r, NEW) for r in ROWS] + [stray], None)
+        self.assertEqual(retarget.plan(gateway, ROWS + [PLANT]), [])
+
+    def test_the_connection_host_comes_from_the_plant_controller_row(self):
+        gateway = FakeGateway([device_at(r, NEW) for r in ROWS], CONNECTION)
+        other = DeviceRow("site1", "PlantController", "plantcontroller", None, "elsewhere", 14840, None)
+        changes = retarget.plan(gateway, ROWS + [other])
+        self.assertEqual([c.label for c in changes], ["OPC connection PlantController"])  # the Modbus devices stay on sim
+        self.assertEqual(changes[0].after, "opc.tcp://elsewhere:14840/fleet-scada/sim")
+
+    def test_with_a_plant_controller_row_the_connection_still_follows_the_simulator_host(self):
+        gateway = FakeGateway([device_at(r, NEW) for r in ROWS], CONNECTION)
+        changes = retarget.plan(gateway, ROWS + [PLANT])
+        self.assertEqual([c.after for c in changes], ["opc.tcp://sim:14840/fleet-scada/sim"])
+
+
 class SwapHostTests(unittest.TestCase):
     def test_only_the_host_changes_and_the_port_and_path_are_kept(self):
         self.assertEqual(retarget.swap_host("opc.tcp://host.docker.internal:14840/fleet-scada/sim", "sim"), "opc.tcp://sim:14840/fleet-scada/sim")

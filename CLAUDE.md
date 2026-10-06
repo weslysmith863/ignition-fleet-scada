@@ -63,16 +63,18 @@ explainable.
   (no `asyncua`) only Modbus runs and the log says OPC UA is off. Port 5020 is not ours (DosingControl).
 - `generator/` and `points/site1.csv`: the points list and the REST API tooling, all standard library. Each tool is a dry
   run or refuses without a flag, and none overwrites hand-built objects:
-  `python -m generator.apply points/site1.csv [--dry-run]` creates missing devices and instances and reports drift;
+  `python -m generator.apply points/site1.csv [--dry-run]` creates missing devices, the OPC UA connection `PlantController`
+  (from the `plantcontroller` row), and instances, and reports drift;
   `python -m generator.export_types site1` saves the gateway's UDT definitions to `gateway/site1/udt-types.json`;
   `python -m generator.import_types site1 [--file F] [--provider P] [--apply]` creates the saved definitions that are missing
   (a dry run without `--apply`; it reports drift and never overwrites; a gateway with no saved file of its own takes
   `--file gateway/site1/udt-types.json`);
-  `python -m generator.connections site1` creates the `fleetdb` PostgreSQL connection (password through the encrypt route);
+  `python -m generator.connections site1 [--dry-run]` creates the `fleetdb` PostgreSQL connection (password through the
+  encrypt route) and then the SQL Historian provider `Historian`;
   `python -m generator.deploy_project site1 projects/site [--overwrite]` deploys a project folder;
   `python -m generator.retarget site1 points/site1.csv [--apply]` moves existing devices and the OPC connection to the
-  points list's host. Not built yet: creating the PlantController OPC connection and instance or the `Historian` provider
-  (the README Quick Start lists those as manual steps).
+  points list's host. Only the `API_RW` level and API key are still manual (the README Quick Start). The steps are tested
+  one by one but not yet run in sequence on an empty gateway; Site 2's first build is that rehearsal.
 - `projects/site/`: the Site 1 Perspective project (Overview, Trends, Controller), written as files by the agent and
   deployed with `generator.deploy_project`. The repo copy is the source of truth: a deploy with `--overwrite` replaces the
   gateway's project, including saved Designer edits, so change views in the repo files.
@@ -86,8 +88,11 @@ explainable.
   (`python -m generator.export_types site1`), or a `down -v` loses them; `python -m generator.import_types site1 --apply`
   puts the saved ones back.
 - The gateway's OPC UA connection `PlantController` (to `opc.tcp://sim:14840/fleet-scada/sim`, security None) and the
-  PlantController tag instance live in the gateway volume too, and the generator does not create them yet (ADR 0010).
-  Inside a container `127.0.0.1` is the container itself; containers reach each other by service name (`sim`, `postgres`).
+  PlantController tag instance live in the gateway volume too; `generator.apply` creates them from the `plantcontroller` row
+  (ADR 0010). The connection needs its OPC client key store password even with security off, or it stays unhealthy
+  ("Unable to retrieve KeyPair"); the generator supplies the dev default through the gateway's encrypt route (finding 45), and
+  never copies one gateway's encrypted value to another. A connection is ready when both its `status` and `uptime` health
+  checks are healthy. Inside a container `127.0.0.1` is the container itself; containers reach each other by service name (`sim`, `postgres`).
   `python -m generator.retarget site1 points/site1.csv [--apply]` moves existing devices and that connection to the host in
   the points list; it changes only host and port.
 - A tag that subscribes before its device is healthy can stay on `Bad_NodeIdUnknown` until it is restarted (Restart
@@ -117,3 +122,7 @@ explainable.
 ## Public-repo hygiene
 This repository is public (confirmed 2026-10-06 at the end of Phase 1), so treat everything committed as public. Personal information and Wes's learning notes belong in the private Notion pages,
 never in this repo. Before any push, scan the whole history for the `.env` secret values (none were found on 2026-10-06).
+`scripts/check_secrets.py` blocks a commit on a leaked-looking credential. A reviewed false alarm may carry
+`# check-secrets: allow <check> - <reason>` on that one line (checks: jwe, token, password-literal); it never hides a value from
+`.env`. Adding a marker relaxes a security check, so it needs Wes's approval. The first is `OPC_KEY_STORE_PASSWORD` in
+`generator/build.py`, approved 2026-10-06: a dev default for a self-generated client key store, not a credential.

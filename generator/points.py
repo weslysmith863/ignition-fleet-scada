@@ -5,11 +5,14 @@ from dataclasses import dataclass
 
 COLUMNS = ("site", "device", "kind", "unit_id", "host", "port", "rated_kw")
 # Each kind of device maps to a UDT and the tag folder its instances live in (ADR 0007); an empty folder means the tag
-# root (Weather and Meter). Only an inverter has a rating: rated_kw is required for it and must stay empty for the rest.
+# root (Weather, Meter, and PlantController). Only an inverter has a rating: rated_kw is required for it and must stay empty
+# for the rest. The protocol says how the gateway reads the device: Modbus TCP devices have a unit ID (it goes in the tag
+# address, not the device settings), while the plant controller is an OPC UA server, which has none.
 KINDS = {
-    "inverter": {"udt": "Inverter", "folder": "Inverters", "rated": True},
-    "weather": {"udt": "Weather", "folder": "", "rated": False},
-    "meter": {"udt": "Meter", "folder": "", "rated": False},
+    "inverter": {"udt": "Inverter", "folder": "Inverters", "rated": True, "protocol": "modbus"},
+    "weather": {"udt": "Weather", "folder": "", "rated": False, "protocol": "modbus"},
+    "meter": {"udt": "Meter", "folder": "", "rated": False, "protocol": "modbus"},
+    "plantcontroller": {"udt": "PlantController", "folder": "", "rated": False, "protocol": "opcua"},
 }
 NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 
@@ -23,7 +26,7 @@ class DeviceRow:
     site: str
     device: str
     kind: str
-    unit_id: int
+    unit_id: int | None  # None for an OPC UA device
     host: str
     port: int
     rated_kw: float | None  # None for a kind without a rating
@@ -35,6 +38,10 @@ class DeviceRow:
     @property
     def folder(self):
         return KINDS[self.kind]["folder"]
+
+    @property
+    def protocol(self):
+        return KINDS[self.kind]["protocol"]
 
     @property
     def tag_path(self):
@@ -58,7 +65,7 @@ def _parse(line, number):
         raise PointsError("line %d: %s" % (number, message))
 
     for column in COLUMNS:
-        if column != "rated_kw" and not (line[column] or "").strip():
+        if column not in ("unit_id", "rated_kw") and not (line[column] or "").strip():
             fail("%s is empty" % column)
     site, device, kind, host = (line[c].strip() for c in ("site", "device", "kind", "host"))
     if not NAME.match(site):
@@ -67,12 +74,24 @@ def _parse(line, number):
         fail("device %r is not a plain name (letters, digits, underscore; starts with a letter)" % device)
     if kind not in KINDS:
         fail("kind %r is not one of %s" % (kind, sorted(KINDS)))
-    try:
-        unit_id, port = int(line["unit_id"]), int(line["port"])
-    except ValueError:
-        fail("unit_id and port must be whole numbers")
-    if not 1 <= unit_id <= 247:
-        fail("unit_id %d is outside 1 to 247 (the usual Modbus range)" % unit_id)
+    unit_text = (line["unit_id"] or "").strip()
+    if KINDS[kind]["protocol"] == "modbus":
+        if not unit_text:
+            fail("unit_id is empty")
+        try:
+            unit_id, port = int(unit_text), int(line["port"])
+        except ValueError:
+            fail("unit_id and port must be whole numbers")
+        if not 1 <= unit_id <= 247:
+            fail("unit_id %d is outside 1 to 247 (the usual Modbus range)" % unit_id)
+    else:
+        if unit_text:
+            fail("unit_id must be empty for kind %s (it is read over OPC UA, which has no unit ID)" % kind)
+        unit_id = None
+        try:
+            port = int(line["port"])
+        except ValueError:
+            fail("port must be a whole number")
     if not 1 <= port <= 65535:
         fail("port %d is outside 1 to 65535" % port)
     rated_text = (line["rated_kw"] or "").strip()
@@ -91,8 +110,13 @@ def _parse(line, number):
 
 
 def _check_unique(rows):
-    names, addresses = {}, {}
+    names, addresses, controllers = {}, {}, {}
     for row in rows:
+        if row.kind == "plantcontroller":
+            if row.site in controllers:
+                raise PointsError("site %s lists %s and %s: a site has only one plantcontroller, because the PlantController "
+                                  "UDT names its OPC connection PlantController" % (row.site, controllers[row.site].device, row.device))
+            controllers[row.site] = row
         key = (row.site, row.device)
         if key in names:
             raise PointsError("device %s appears twice on site %s" % (row.device, row.site))

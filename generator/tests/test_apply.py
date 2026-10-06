@@ -1,5 +1,6 @@
 """Tests for generator.apply against an in-memory fake gateway: create what is missing, never overwrite, report drift."""
 import copy
+import json
 import pathlib
 import unittest
 
@@ -9,6 +10,8 @@ from generator.tests.test_build import FAKE_SCHEMA
 
 ROWS = read_points(pathlib.Path(__file__).resolve().parents[2] / "points" / "site1.csv")
 INVERTERS = [row for row in ROWS if row.kind == "inverter"]
+MODBUS = [row for row in ROWS if row.protocol == "modbus"]  # the four inverters, the weather station, and the meter
+ENCRYPTED = {"type": "Embedded", "data": {"ciphertext": "AAAA", "iv": "BBBB"}}  # what the gateway's encrypt route returns, wrapped
 
 
 class FakeGateway:
@@ -17,8 +20,12 @@ class FakeGateway:
         self.tags = {}
         self.created_devices = []
         self.imports = []
-        self.writes = []  # the order of changes: "device", "wait", "instances"
+        self.writes = []  # the order of changes: "device", "wait", "opc", "wait-opc", "instances"
         self.devices_ready = True
+        self.opc = {}
+        self.created_opc = []
+        self.opc_healthy = True
+        self.encrypted = []
 
     def device_settings_schema(self):
         return FAKE_SCHEMA
@@ -34,6 +41,22 @@ class FakeGateway:
     def wait_for_devices(self, timeout_s=30.0, poll_s=1.0):
         self.writes.append("wait")
         return self.devices_ready
+
+    def encrypt(self, plain_text):
+        self.encrypted.append(plain_text)
+        return copy.deepcopy(ENCRYPTED)
+
+    def opc_connection(self, name):
+        return self.opc.get(name)
+
+    def create_opc_connection(self, body):
+        self.opc[body["name"]] = copy.deepcopy(body)
+        self.created_opc.append(body["name"])
+        self.writes.append("opc")
+
+    def wait_for_healthy(self, resource_type, name, timeout_s=30.0, poll_s=1.0):
+        self.writes.append("wait-opc")
+        return self.opc_healthy
 
     def tag(self, path):
         return self.tags.get(path)
@@ -154,10 +177,114 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual(report.created_instances[0], "would create instance Inverters/Inv2")
 
 
+class PlantControllerTests(unittest.TestCase):
+    """The plant controller row: an OPC UA connection, then its instance at the tag root (no parameters)."""
+    EXPECTED_INSTANCE = {"name": "PlantController", "tagType": "UdtInstance", "typeId": "PlantController"}
+
+    def test_the_connection_is_created_after_the_devices_and_healthy_before_the_instances_are_imported(self):
+        gateway = FakeGateway()
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(gateway.created_opc, ["PlantController"])
+        self.assertEqual(gateway.writes, ["device"] * 6 + ["wait", "opc", "wait-opc", "instances", "instances"])
+        self.assertEqual(report.created_connections, ["created OPC connection PlantController"])
+        self.assertEqual(report.warnings, [])
+        self.assertEqual(report.drift, [])
+
+    def test_the_key_store_password_is_encrypted_by_the_gateway_and_only_the_encrypted_value_is_sent(self):
+        # Without it the connection stays unhealthy ("Unable to retrieve KeyPair for alias 'client'", Phase 2 finding 45).
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        self.assertEqual(gateway.encrypted, [build.OPC_KEY_STORE_PASSWORD])
+        stored = gateway.opc["PlantController"]["config"]["settings"]["security"]
+        self.assertEqual(stored["keyStoreAliasPassword"], ENCRYPTED)
+        self.assertNotIn(build.OPC_KEY_STORE_PASSWORD, json.dumps(gateway.opc))
+
+    def test_nothing_is_encrypted_on_a_dry_run_or_when_the_connection_already_exists(self):
+        dry = FakeGateway()
+        apply.apply_rows(dry, ROWS, dry_run=True)
+        self.assertEqual(dry.encrypted, [])
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        gateway.encrypted.clear()
+        apply.apply_rows(gateway, ROWS)
+        self.assertEqual(gateway.encrypted, [])
+
+    def test_the_encrypted_password_is_not_compared_so_it_never_shows_as_drift(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        gateway.opc["PlantController"]["config"]["settings"]["security"]["keyStoreAliasPassword"] = {"type": "Embedded", "data": {"x": 1}}
+        self.assertEqual(apply.apply_rows(gateway, ROWS).drift, [])
+
+    def test_the_instance_goes_in_with_the_other_root_instances_and_has_no_parameters(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        _, root_payload, policy = gateway.imports[-1]
+        self.assertEqual(policy, "Abort")
+        self.assertEqual([t["name"] for t in root_payload["tags"]], ["Weather", "Meter", "PlantController"])
+        self.assertEqual(root_payload["tags"][2], self.EXPECTED_INSTANCE)
+
+    def test_an_existing_matching_connection_and_instance_are_left_alone(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        connection, instance = copy.deepcopy(gateway.opc), copy.deepcopy(gateway.tags["PlantController"])
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(len(gateway.created_opc), 1)  # not created again
+        self.assertEqual((gateway.opc, gateway.tags["PlantController"]), (connection, instance))
+        self.assertIn("OPC connection PlantController", report.unchanged)
+        self.assertIn("instance PlantController", report.unchanged)
+        self.assertEqual(report.created_connections + report.created_instances + report.drift, [])
+
+    def test_a_connection_pointing_somewhere_else_is_reported_as_drift_and_not_fixed(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        gateway.opc["PlantController"]["config"]["settings"]["endpoint"]["endpointUrl"] = "opc.tcp://old:14840/fleet-scada/sim"
+        broken = copy.deepcopy(gateway.opc)
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(report.drift, ["OPC connection PlantController: endpointUrl is 'opc.tcp://old:14840/fleet-scada/sim', "
+                                        "points list says 'opc.tcp://sim:14840/fleet-scada/sim'"])
+        self.assertEqual(gateway.opc, broken)  # untouched
+
+    def test_a_connection_with_security_turned_on_is_reported_as_drift(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        gateway.opc["PlantController"]["config"]["settings"]["endpoint"]["securityMode"] = "SignAndEncrypt"
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertEqual(report.drift, ["OPC connection PlantController: securityMode is 'SignAndEncrypt', points list says 'None'"])
+
+    def test_an_unhealthy_connection_after_the_wait_produces_a_warning_but_the_run_continues(self):
+        gateway = FakeGateway()
+        gateway.opc_healthy = False
+        report = apply.apply_rows(gateway, ROWS)
+        self.assertTrue(any("PlantController connection" in w and "Restart Tag" in w for w in report.warnings), report.warnings)
+        self.assertIn("created instance PlantController", report.created_instances)
+
+    def test_a_dry_run_creates_nothing_and_says_what_it_would_do(self):
+        gateway = FakeGateway()
+        report = apply.apply_rows(gateway, ROWS, dry_run=True)
+        self.assertEqual((gateway.created_opc, gateway.writes), ([], []))
+        self.assertEqual(report.created_connections, ["would create OPC connection PlantController"])
+        self.assertIn("would create instance PlantController", report.created_instances)
+
+    def test_a_list_without_a_plant_controller_never_touches_opc(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, MODBUS)
+        self.assertEqual(gateway.created_opc, [])
+        self.assertNotIn("opc", gateway.writes)
+        self.assertNotIn("wait-opc", gateway.writes)
+
+    def test_no_wait_when_the_connection_exists_and_only_the_instance_is_missing(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ROWS)
+        del gateway.tags["PlantController"]
+        gateway.writes.clear()
+        apply.apply_rows(gateway, ROWS)
+        self.assertEqual(gateway.writes, ["instances"])
+
+
 class WeatherAndMeterTests(unittest.TestCase):
     def test_the_full_list_creates_six_devices_then_the_inverter_folder_then_two_root_instances(self):
         gateway = FakeGateway()
-        report = apply.apply_rows(gateway, ROWS)
+        report = apply.apply_rows(gateway, MODBUS)
         self.assertEqual(sorted(gateway.created_devices), ["Inv1", "Inv2", "Inv3", "Inv4", "Meter", "Weather"])
         self.assertEqual(gateway.writes, ["device"] * 6 + ["wait", "instances", "instances"])
         (folder_path, folder_payload, _), (root_path, root_payload, root_policy) = gateway.imports
@@ -175,7 +302,7 @@ class WeatherAndMeterTests(unittest.TestCase):
         for row in INVERTERS:
             gateway.add_hand_built(row)
         before = copy.deepcopy((gateway.devices, gateway.tags))
-        apply.apply_rows(gateway, ROWS)
+        apply.apply_rows(gateway, MODBUS)
         self.assertEqual(sorted(gateway.created_devices), ["Meter", "Weather"])
         self.assertEqual(len(gateway.imports), 1)
         for name, device in before[0].items():
@@ -194,9 +321,9 @@ class WeatherAndMeterTests(unittest.TestCase):
 
     def test_a_second_run_over_the_full_list_changes_nothing(self):
         gateway = FakeGateway()
-        apply.apply_rows(gateway, ROWS)
+        apply.apply_rows(gateway, MODBUS)
         imports_before = len(gateway.imports)
-        report = apply.apply_rows(gateway, ROWS)
+        report = apply.apply_rows(gateway, MODBUS)
         self.assertEqual(len(gateway.imports), imports_before)
         self.assertEqual(report.created_devices + report.created_instances + report.drift, [])
         self.assertEqual(len(report.unchanged), 12)

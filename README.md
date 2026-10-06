@@ -28,15 +28,16 @@ simulator, Ignition tags and templates, history in PostgreSQL, and browser scree
   an OPC UA plant controller (port 14840), from one process and one clock. Runs as the `sim` container.
 - **Ignition tag model**: four UDT templates (Inverter, Weather, Meter, PlantController), with Modbus scale factors handled by
   expressions and the OPC UA values arriving in engineering units.
-- **Points-list generator** (`generator/`, standard library only): reads `points/site1.csv` and creates the Modbus devices and UDT
-  instances through the REST API. It never overwrites, reports drift, and creates devices before instances.
-  It also creates the PostgreSQL connection with an encrypted password, deploys projects, and retargets device hosts.
+- **Points-list generator** (`generator/`, standard library only): reads `points/site1.csv` and creates the Modbus devices, the
+  OPC UA plant-controller connection, and the UDT instances through the REST API. It never overwrites, reports drift, and
+  creates devices and connections before instances. It also imports the saved UDT definitions, creates the PostgreSQL
+  connection (encrypted password) and the SQL Historian provider, deploys projects, and retargets device hosts.
 - **History**: SQL Historian on PostgreSQL, with sampling choices recorded in an ADR.
 - **Screens** (`projects/site/`): Overview, Trends (a chart that reads the historian), and a Controller page that writes the
   plant limit and shows curtailment. They are Perspective project files deployed with one command.
-- **Documentation**: 13 architecture decision records, three layer cards, a domain primer, and a findings log of what the
+- **Documentation**: 14 architecture decision records, four layer cards, a domain primer, and findings logs of what the
   experiments showed, including the mistakes.
-- **Tests**: 142 automated tests (84 simulator, 58 generator), standard library only.
+- **Tests**: 221 automated tests (97 simulator, 124 generator and tooling), standard library only.
 
 ## What it demonstrates
 
@@ -54,17 +55,18 @@ copy .env.example .env        # then fill in the values; .env is gitignored and 
 docker compose up -d --build  # hub, site1, postgres, and the sim container
 ```
 
-Then there is first-time setup on a fresh gateway that is **manual** today (the automation for it is on the list below):
+Then there is first-time setup on a fresh gateway. Only the first step is manual; each of the others is a tool that reports
+before it changes anything. They have each been tested, but not yet run in sequence on an empty gateway:
 
 1. In each gateway's web page, create a security level `API_RW`, allow it under *Gateway Write Permissions*, and create an API
    key that holds it. Put the tokens in `.env` (`HUB_API_TOKEN`, `SITE1_API_TOKEN`). See `docs/adr/0005`.
-2. `python -m generator.connections site1` creates the PostgreSQL connection `fleetdb` with an encrypted password.
-3. In site1's Config pages, create a SQL Historian provider named `Historian` on `fleetdb`.
-4. `python -m generator.import_types site1 --apply` creates the four UDT definitions from `gateway/site1/udt-types.json`
-   (without `--apply` it only reports). Then create the OPC UA connection `PlantController` to
-   `opc.tcp://sim:14840/fleet-scada/sim` (security None) and the `PlantController` instance by hand.
-5. `python -m generator.apply points/site1.csv` creates the Modbus devices and the Inverter, Weather, and Meter instances.
-6. `python -m generator.deploy_project site1 projects/site` deploys the screens, then open
+2. `python -m generator.connections site1` creates the PostgreSQL connection `fleetdb` with an encrypted password, then the SQL
+   Historian provider `Historian` on it (add `--dry-run` to only report).
+3. `python -m generator.import_types site1 --apply` creates the four UDT definitions from `gateway/site1/udt-types.json`
+   (without `--apply` it only reports).
+4. `python -m generator.apply points/site1.csv` creates the Modbus devices, the OPC UA connection `PlantController` (to
+   `opc.tcp://sim:14840/fleet-scada/sim`, security None), and the Inverter, Weather, Meter, and PlantController instances.
+5. `python -m generator.deploy_project site1 projects/site` deploys the screens, then open
    `http://localhost:8091/data/perspective/client/site`.
 
 `SIM_START` in `.env` pins the simulated start time (for example midday, so the plant is producing); empty means the real clock.
@@ -77,19 +79,21 @@ The simulator's OPC UA tests need `asyncua` (`sim/requirements.txt`) and are ski
 These are deliberate for a local, single-machine project, and each is written down so it is not mistaken for a design.
 
 - **No security on local links**: plaintext Gateway Network and API key transport (ADR 0004), an OPC UA server with no security
-  (ADR 0010), and Perspective screens with no login that can write the plant limit (ADR 0012). All ports are bound to the
-  loopback interface. None of this is suitable for a shared deployment.
+  (ADR 0010), and Perspective screens with no login that can write the plant limit (ADR 0012). The generator also gives a new
+  OPC UA connection the default password for the gateway's own OPC client key store (`password`, Phase 2 finding 45), a dev
+  default for a self-generated certificate. All ports are bound to the loopback interface. None of this is suitable for a
+  shared deployment.
 - **Simulated data**: the code labels what is modeled, approximated, or not modeled (Layer Card 1). Fixed-tilt panels, no
   trackers, no reactive power, no wind.
-- **Not automated yet**: creating the OPC UA connection and its tag instance, and the historian provider. A rebuilt gateway
-  needs those steps by hand (see above).
+- **Not run end to end yet**: the setup steps above are each tested, but a rebuild of an empty gateway through all of them has
+  not been done. The security level and API key stay manual.
 - **One site**. The fleet, the hub's fleet views, alarms, and the battery are later phases.
 
 ## Repo layout
 
 ```
 sim/                 the plant simulator: physics, Modbus server, OPC UA plant controller, Dockerfile
-generator/           points-list generator and the REST API tooling (apply, connections, deploy_project, retarget)
+generator/           points-list generator and the REST API tooling (apply, connections, import_types, deploy_project, retarget)
 points/              the points list (one row per device); the source of truth for devices and instances
 projects/site/       the Perspective project (views as files), deployed through the API
 gateway/             exported gateway state kept for reference (UDT definitions)

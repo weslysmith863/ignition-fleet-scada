@@ -4,7 +4,8 @@
     python -m generator.retarget site1 points/site1.csv --apply    # make the change
 
 The points list is the source of truth for where the devices are. This changes only the host name (and port) of Modbus
-devices that exist and differ from their row, and the host inside the URLs of the OPC UA connection `PlantController`.
+devices that exist and differ from their row, and the host inside the URLs of the OPC UA connection `PlantController` (taken
+from the plantcontroller row when there is one, else from the Modbus rows).
 Nothing else is touched: not tags, parameters, enabled flags, descriptions, or any other setting. Each update is checked
 against the resource's signature, so a change made on the gateway since it was read is refused, not overwritten.
 To undo, put the old host back in the points list and run it again.
@@ -39,12 +40,15 @@ def swap_host(url, host):
 
 def plan(gateway, rows):
     """The changes that make the gateway's existing devices and the plant controller connection match the points list."""
-    hosts = sorted({row.host for row in rows})
+    modbus_rows = [row for row in rows if row.protocol == "modbus"]
+    hosts = sorted({row.host for row in modbus_rows})
     if len(hosts) != 1:
         raise GatewayError("the points list names more than one simulator host (%s); retarget needs exactly one" % ", ".join(hosts))
     host = hosts[0]
+    opc_rows = [row for row in rows if row.protocol == "opcua"]
+    opc_host = opc_rows[0].host if opc_rows else host  # the plant controller row names its own host; otherwise the Modbus one
     changes = []
-    for row in rows:
+    for row in modbus_rows:
         existing = gateway.device(row.device)
         if existing is None:
             continue  # generator.apply creates it with the right host
@@ -58,7 +62,7 @@ def plan(gateway, rows):
     connection = gateway.opc_connection(CONNECTION_NAME)
     if connection is not None:
         endpoint = connection["config"]["settings"]["endpoint"]
-        new_discovery, new_endpoint = swap_host(endpoint["discoveryUrl"], host), swap_host(endpoint["endpointUrl"], host)
+        new_discovery, new_endpoint = swap_host(endpoint["discoveryUrl"], opc_host), swap_host(endpoint["endpointUrl"], opc_host)
         if (new_discovery, new_endpoint) != (endpoint["discoveryUrl"], endpoint["endpointUrl"]):
             updated = copy.deepcopy(connection)
             updated["config"]["settings"]["endpoint"]["discoveryUrl"] = new_discovery

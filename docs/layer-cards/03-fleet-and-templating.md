@@ -52,7 +52,8 @@ flowchart LR
 | Points list, `apply`, `export_types`, `connections`, `deploy_project`, `retarget` | Built (Phase 1) |
 | Site 1, the Gateway Network link to the hub (site1 on the hub's whitelist) | Built |
 | UDT import (`generator.import_types`) | Built 2026-10-06; tried on a scratch provider (findings 42 to 44) |
-| PlantController connection, instance, and `Historian` provider in the generator | Planned |
+| PlantController connection and instance (a `plantcontroller` row; `generator.apply`) and the `Historian` provider (`generator.connections`) | Built 2026-10-06; tried on scratch objects (findings 45 to 47) and reported unchanged against site1 |
+| The whole rebuild run in sequence on an empty gateway | Planned: Site 2's first build is the rehearsal |
 | `site2` gateway, `sim2`, a Site 2 points file | Planned (needs Wes's license and key steps) |
 | Remote tag provider `site1` on the hub | Built by hand 2026-10-06; REST creation of a remote provider works (findings 36 to 38) |
 | Remote tag provider `site2` on the hub | Planned (the generator can create it) |

@@ -11,6 +11,11 @@ Checks the STAGED version of every file that is about to be committed:
 
 It never prints a secret, only the file and line number. This is a local safety net; CI should also run a
 dedicated scanner such as gitleaks.
+
+A reviewed false alarm in check 3 can be allowed on that one line with a marker comment that names the check and gives a
+reason: `check-secrets: allow <check> - <reason>`, where <check> is jwe, token, or password-literal. The marker covers only
+that line and only that check, a marker without a reason or a check name is itself reported, and check 2 (your own .env
+values) ignores markers completely. Adding a marker relaxes a security check, so it needs Wes's approval.
 """
 import re
 import subprocess
@@ -19,10 +24,30 @@ import sys
 SECRET_KEY_PATTERN = re.compile(r"PASSWORD|TOKEN|LICENSE_KEY|SECRET", re.IGNORECASE)
 PLACEHOLDERS = ("change-me", "paste-token-here", "XXXX-XXXX", "<")
 CREDENTIAL_PATTERNS = [
-    ("JWE or JWT-looking string", re.compile(r"eyJ[A-Za-z0-9_-]{20,}")),
-    ("long name:secret token", re.compile(r"[A-Za-z0-9_-]{4,}:[A-Za-z0-9_-]{40,}")),
-    ("password assigned a literal value", re.compile(r"password\s*[:=]\s*[\"']?[^\s\"'<{$]{6,}", re.IGNORECASE)),
+    ("jwe", "JWE or JWT-looking string", re.compile(r"eyJ[A-Za-z0-9_-]{20,}")),
+    ("token", "long name:secret token", re.compile(r"[A-Za-z0-9_-]{4,}:[A-Za-z0-9_-]{40,}")),
+    ("password-literal", "password assigned a literal value", re.compile(r"password\s*[:=]\s*[\"']?[^\s\"'<{$]{6,}", re.IGNORECASE)),
 ]
+MARKER_WORDS = re.compile(r"check-secrets:\s*allow")
+ALLOW_MARKER = re.compile(r"check-secrets:\s*allow\s+([a-z-]+)\s+-\s+(\S.*)$")
+
+
+def credential_problems(line):
+    """What is wrong with one line: the credential patterns it matches, minus any the line carries a reasoned allow marker
+    for, plus a note when an allow marker is malformed (no check name or no reason)."""
+    if any(p in line for p in PLACEHOLDERS):
+        return []
+    marker = ALLOW_MARKER.search(line)
+    allowed = {marker.group(1)} if marker else set()
+    problems = [label for check, label, pattern in CREDENTIAL_PATTERNS if check not in allowed and pattern.search(line)]
+    if MARKER_WORDS.search(line) and not marker:
+        problems.append("allow marker without a check name and a reason")
+    return problems
+
+
+def env_value_problems(path, content, secrets):
+    """Check 2: one problem per value from the local .env that appears anywhere in the file. Allow markers do not apply."""
+    return [f"{path}: contains the value of {key} from your local .env" for key, value in secrets.items() if value in content]
 
 
 def git(*args):
@@ -58,15 +83,10 @@ def main():
             )
         except subprocess.CalledProcessError:
             continue
-        for key, value in secrets.items():
-            if value in content:
-                problems.append(f"{path}: contains the value of {key} from your local .env")
+        problems += env_value_problems(path, content, secrets)
         for lineno, line in enumerate(content.splitlines(), 1):
-            if any(p in line for p in PLACEHOLDERS):
-                continue
-            for label, pattern in CREDENTIAL_PATTERNS:
-                if pattern.search(line):
-                    problems.append(f"{path}:{lineno}: looks like a leaked credential ({label})")
+            for label in credential_problems(line):
+                problems.append(f"{path}:{lineno}: looks like a leaked credential ({label})")
 
     if problems:
         print("COMMIT BLOCKED: possible secrets found (values are not shown):")

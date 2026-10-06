@@ -12,6 +12,7 @@ GATEWAYS = {"hub": (8090, "HUB_API_TOKEN"), "site1": (8091, "SITE1_API_TOKEN")}
 DEVICE_TYPE = "com.inductiveautomation.opcua/device"
 DATABASE_TYPE = "ignition/database-connection"
 OPC_CONNECTION_TYPE = "ignition/opc-connection"
+HISTORIAN_TYPE = "com.inductiveautomation.historian/historian-provider"
 PROVIDER = "default"
 
 
@@ -126,6 +127,31 @@ class RestGateway:
     def opc_connection(self, name):
         """The OPC UA client connection resource, or None when it does not exist."""
         return self._call("GET", "/resources/find/%s/%s" % (OPC_CONNECTION_TYPE, urllib.parse.quote(name)), allow_404=True)
+
+    def create_opc_connection(self, body):
+        return self._call("POST", "/resources/" + OPC_CONNECTION_TYPE, [body])
+
+    def wait_for_healthy(self, resource_type, name, timeout_s=30.0, poll_s=1.0):
+        """Wait until every health check a resource reports says healthy. Returns False on timeout, as wait_for_devices does.
+
+        An OPC connection reports two: `status` (is its configuration usable?) and `uptime` (is it connected?). Waiting for
+        the first alone returns before the connection is up (Phase 2 finding 45)."""
+        deadline = time.monotonic() + timeout_s
+        while True:
+            found = self._call("GET", "/resources/find/%s/%s" % (resource_type, urllib.parse.quote(name)), allow_404=True)
+            checks = ((found or {}).get("healthchecks") or {}).values()
+            if checks and all(check.get("result", {}).get("healthy") for check in checks):
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(poll_s)
+
+    def historian_provider(self, name):
+        """The historian provider resource, or None when it does not exist."""
+        return self._call("GET", "/resources/find/%s/%s" % (HISTORIAN_TYPE, urllib.parse.quote(name)), allow_404=True)
+
+    def create_historian_provider(self, body):
+        return self._call("POST", "/resources/" + HISTORIAN_TYPE, [body])
 
     def update_resource(self, resource_type, resource):
         """Modify one resource (PUT). Only the fields the API accepts are sent, and the signature must match the gateway's
