@@ -1,0 +1,7 @@
+# The build context is the repo root, but only sim/ is ever needed. Start from nothing and allow it back in,
+# so .env, the gateway notes, and the .venv can never end up inside an image.
+*
+!sim/
+sim/tests/
+**/__pycache__/
+**/*.pyc

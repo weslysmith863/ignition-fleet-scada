@@ -17,3 +17,4 @@ changes, add a new ADR that supersedes the old one.
 | [0010](0010-phase1-opcua-plant-controller-server.md) | OPC UA plant controller server in the simulator | Accepted (security off, dev only) |
 | [0011](0011-phase1-historian-database-connection-and-sampling.md) | Phase 1 database connection, SQL Historian, and history sampling | Accepted |
 | [0012](0012-phase1-site-views-as-project-files.md) | Site 1 views are project files in the repo, deployed through the REST API | Accepted (no login, dev only) |
+| [0013](0013-phase1-simulator-as-a-container.md) | The simulator runs as a Compose service named sim | Accepted |

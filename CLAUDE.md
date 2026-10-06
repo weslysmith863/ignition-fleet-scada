@@ -52,13 +52,14 @@ Fleet scale from templates and a points list. Deploy through the REST API (ADR 0
 explainable.
 
 ## Repo map and commands
-- `sim/`: the simulator (physics, plant model, SunSpec Modbus server on 15020, OPC UA plant controller on 14840). Wes
-  starts it in its own terminal (a second terminal is for every other command; running one in the simulator's
-  terminal stops it) from the repo folder, with the project's `.venv` Python because OPC UA needs `asyncua`
-  (`sim/requirements.txt`; the `.venv` is gitignored and was created on 2026-10-05):
-  `.\.venv\Scripts\python.exe -m sim.modbus_server --port 15020 --start <a daytime UTC time, e.g. 2026-10-05T17:00:00Z> --seed 1`.
-  Without it the gateways' Modbus devices fault and tags read bad. With plain `python` (no `asyncua`) only Modbus runs and
-  the log says OPC UA is off. Port 5020 is not ours (DosingControl).
+- `sim/`: the simulator (physics, plant model, SunSpec Modbus server on 15020, OPC UA plant controller on 14840). It runs
+  as the `sim` Compose service (ADR 0013): `docker.exe compose up -d --build sim` builds and starts it, and the gateways reach it
+  as `sim:15020` and `sim:14840`. `SIM_START` in `.env` (optional, UTC, e.g. `2026-10-05T17:00:00Z`) pins the simulated
+  start so the plant is producing; empty means the real clock. Without the simulator the gateways' Modbus devices fault and tags
+  read bad. For development it can still run in its own terminal with the project's `.venv` Python (OPC UA needs `asyncua`,
+  `sim/requirements.txt`): stop the container first, then
+  `.\.venv\Scripts\python.exe -m sim.modbus_server --port 15020 --start <a daytime UTC time> --seed 1`. With plain `python`
+  (no `asyncua`) only Modbus runs and the log says OPC UA is off. Port 5020 is not ours (DosingControl).
 - `generator/` and `points/site1.csv`: the points list and the generator. `python -m generator.apply points/site1.csv
   [--dry-run]` creates missing devices and instances and reports drift. `python -m generator.export_types site1` saves
   the gateway's UDT definitions to `gateway/site1/udt-types.json`.
@@ -70,9 +71,11 @@ explainable.
 ## Gotchas (the reason behind each)
 - UDT definitions live in the gateway's data volume, not in a project. Export them after every edit in Designer
   (`python -m generator.export_types site1`), or a `down -v` loses them.
-- The gateway's OPC UA connection `PlantController` (to `opc.tcp://host.docker.internal:14840/fleet-scada/sim`, security
-  None) and the PlantController tag instance live in the gateway volume too, and the generator does not create them yet
-  (ADR 0010). Inside the gateway container `127.0.0.1` is the container itself; the PC is `host.docker.internal`.
+- The gateway's OPC UA connection `PlantController` (to `opc.tcp://sim:14840/fleet-scada/sim`, security None) and the
+  PlantController tag instance live in the gateway volume too, and the generator does not create them yet (ADR 0010).
+  Inside a container `127.0.0.1` is the container itself; containers reach each other by service name (`sim`, `postgres`).
+  `python -m generator.retarget site1 points/site1.csv [--apply]` moves existing devices and that connection to the host in
+  the points list; it changes only host and port.
 - A tag that subscribes before its device is healthy can stay on `Bad_NodeIdUnknown` until it is restarted (Restart
   Tag in Designer). The generator creates devices first and waits for them.
 - A gateway's edition is fixed at its first boot (`IGNITION_EDITION`); fixing a wrong one means wiping that

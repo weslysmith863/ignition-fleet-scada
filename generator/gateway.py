@@ -11,6 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 GATEWAYS = {"hub": (8090, "HUB_API_TOKEN"), "site1": (8091, "SITE1_API_TOKEN")}
 DEVICE_TYPE = "com.inductiveautomation.opcua/device"
 DATABASE_TYPE = "ignition/database-connection"
+OPC_CONNECTION_TYPE = "ignition/opc-connection"
 PROVIDER = "default"
 
 
@@ -120,6 +121,16 @@ class RestGateway:
     def scan_projects(self):
         """Ask the gateway to rescan project files (a project imported through the API is picked up by itself, but a scan is cheap)."""
         return self._call("POST", "/scan/projects")
+
+    def opc_connection(self, name):
+        """The OPC UA client connection resource, or None when it does not exist."""
+        return self._call("GET", "/resources/find/%s/%s" % (OPC_CONNECTION_TYPE, urllib.parse.quote(name)), allow_404=True)
+
+    def update_resource(self, resource_type, resource):
+        """Modify one resource (PUT). Only the fields the API accepts are sent, and the signature must match the gateway's
+        current copy, so a change made since this resource was read is refused instead of overwritten."""
+        keep = ("name", "collection", "enabled", "description", "signature", "config", "backupConfig")
+        return self._call("PUT", "/resources/" + resource_type, [{key: resource[key] for key in keep if key in resource}])
 
     def database_connection(self, name):
         """The database connection resource, or None when it does not exist."""

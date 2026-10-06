@@ -1,5 +1,5 @@
-# Phase 0 skeleton: one hub gateway and one site gateway.
-# See docs/layer-cards/00-platform-skeleton.md and docs/adr/0002, 0003.
+# Hub gateway, site gateway, PostgreSQL, and the plant simulator.
+# See docs/layer-cards/00-platform-skeleton.md, docs/adr/0002, 0003, and 0013.
 name: ignition-fleet-scada
 
 x-gateway: &gateway
@@ -78,6 +78,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+
+  # The plant simulator (ADR 0013): SunSpec Modbus TCP on 15020 and the OPC UA plant controller on 14840, one program, one
+  # clock. Gateways reach it as sim:15020 and sim:14840 on the Compose network. The ports are also published on this PC's
+  # loopback so tools on the PC can reach it. SIM_START (optional, from .env) pins the simulated start time.
+  sim:
+    build:
+      context: .
+      dockerfile: sim/Dockerfile
+    restart: unless-stopped
+    environment:
+      SIM_START: ${SIM_START:-}
+      TZ: ${TZ:-America/Chicago}
+    ports:
+      - "127.0.0.1:15020:15020"
+      - "127.0.0.1:14840:14840"
+    healthcheck:
+      # Healthy when both the Modbus and the OPC UA port accept a connection.
+      test: ["CMD", "python", "-c", "import socket; [socket.create_connection(('127.0.0.1', p), 3).close() for p in (15020, 14840)]"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
 
 # Named volumes keep gateway state (config, projects, license) and database files across container recreation.
 volumes:

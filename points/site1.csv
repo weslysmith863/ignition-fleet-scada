@@ -1,7 +1,7 @@
 site,device,kind,unit_id,host,port,rated_kw
-site1,Inv1,inverter,1,host.docker.internal,15020,1250
-site1,Inv2,inverter,2,host.docker.internal,15020,1250
-site1,Inv3,inverter,3,host.docker.internal,15020,1250
-site1,Inv4,inverter,4,host.docker.internal,15020,1250
-site1,Weather,weather,5,host.docker.internal,15020,
-site1,Meter,meter,6,host.docker.internal,15020,
+site1,Inv1,inverter,1,sim,15020,1250
+site1,Inv2,inverter,2,sim,15020,1250
+site1,Inv3,inverter,3,sim,15020,1250
+site1,Inv4,inverter,4,sim,15020,1250
+site1,Weather,weather,5,sim,15020,
+site1,Meter,meter,6,sim,15020,

@@ -13,6 +13,7 @@ and other functions get "illegal function", and an unknown unit ID gets "gateway
 """
 import argparse
 import asyncio
+import os
 import random
 import socketserver
 import struct
@@ -110,6 +111,15 @@ class Server(socketserver.ThreadingTCPServer):
         self.verbose = verbose
 
 
+def resolve_start(argument, environment_value):
+    """The simulated start time (UTC): the --start argument, else the SIM_START setting, else the real clock now.
+    An empty value counts as not set, so an unset Compose variable means real time."""
+    text = (argument or environment_value or "").strip()
+    if not text:
+        return datetime.now(timezone.utc)
+    return datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+
 def start_opcua(simulation, host, port):
     """Serve the plant controller over OPC UA in its own thread, if asyncua is installed. Returns True when started."""
     try:
@@ -135,14 +145,13 @@ def main(argv=None):
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=15020)
     parser.add_argument("--opcua-port", type=int, default=14840, help="OPC UA plant controller port; 0 turns it off")
-    parser.add_argument("--start", default=None, help="simulated start time, UTC, e.g. 2026-06-21T18:00:00Z (default: now)")
+    parser.add_argument("--start", default=None, help="simulated start time, UTC, e.g. 2026-06-21T18:00:00Z (default: the SIM_START setting, else now)")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--no-clouds", action="store_true")
     parser.add_argument("--verbose", action="store_true", help="log every connection and read")
     args = parser.parse_args(argv)
 
-    start = (datetime.strptime(args.start, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-             if args.start else datetime.now(timezone.utc))
+    start = resolve_start(args.start, os.environ.get("SIM_START"))
     simulation = Simulation(SiteConfig(seed=args.seed, clouds_enabled=not args.no_clouds))
     simulation.tick(start, 0.0)  # registers exist before the first client connects
     threading.Thread(target=simulation.run_forever, args=(start,), daemon=True).start()

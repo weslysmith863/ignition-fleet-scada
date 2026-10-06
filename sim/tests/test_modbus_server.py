@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from sim import sunspec
 from sim.model import SiteConfig
-from sim.modbus_server import Server, Simulation
+from sim.modbus_server import Server, Simulation, resolve_start
 
 NOON = datetime(2026, 6, 21, 18, 50, tzinfo=timezone.utc)
 CLEAR = SiteConfig(clouds_enabled=False)
@@ -109,6 +109,24 @@ class SimulationTests(unittest.TestCase):
                 sim.tick(NOON + timedelta(seconds=second), 1.0)
             return sim.registers
         self.assertEqual(run(2), run(2))
+
+
+class StartTimeTests(unittest.TestCase):
+    def test_the_argument_wins_over_the_setting(self):
+        self.assertEqual(resolve_start("2026-10-05T17:00:00Z", "2026-01-01T00:00:00Z"), datetime(2026, 10, 5, 17, 0, tzinfo=timezone.utc))
+
+    def test_the_setting_is_used_when_there_is_no_argument(self):
+        self.assertEqual(resolve_start(None, "2026-10-05T17:00:00Z"), datetime(2026, 10, 5, 17, 0, tzinfo=timezone.utc))
+
+    def test_neither_or_an_empty_setting_means_the_real_clock(self):
+        for empty in (None, "", "   "):
+            before = datetime.now(timezone.utc)
+            got = resolve_start(None, empty)
+            self.assertTrue(before <= got <= datetime.now(timezone.utc))
+
+    def test_a_badly_formed_time_is_an_error_not_a_silent_default(self):
+        with self.assertRaises(ValueError):
+            resolve_start("tomorrow noon", None)
 
 
 if __name__ == "__main__":

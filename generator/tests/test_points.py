@@ -23,7 +23,7 @@ class PointsTests(unittest.TestCase):
         self.assertEqual([r.unit_id for r in rows], [1, 2, 3, 4, 5, 6])
         inverters = rows[:4]
         self.assertTrue(all(r.kind == "inverter" and r.udt == "Inverter" and r.folder == "Inverters" for r in inverters))
-        self.assertEqual({(r.host, r.port, r.rated_kw) for r in inverters}, {("host.docker.internal", 15020, 1250.0)})
+        self.assertEqual({(r.host, r.port, r.rated_kw) for r in inverters}, {("sim", 15020, 1250.0)})
         self.assertEqual([(r.udt, r.rated_kw, r.tag_path) for r in rows[4:]], [("Weather", None, "Weather"), ("Meter", None, "Meter")])
 
     def test_an_inverter_is_found_in_its_folder_and_a_weather_station_at_the_tag_root(self):
