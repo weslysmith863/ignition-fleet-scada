@@ -50,7 +50,8 @@ explainable.
 
 ## Repo map and commands
 - `sim/`: the simulator (physics, plant model, SunSpec Modbus server on 15020, OPC UA plant controller on 14840). Wes
-  starts it in a terminal from the repo folder, with the project's `.venv` Python because OPC UA needs `asyncua`
+  starts it in its own terminal (a second terminal is for every other command; running one in the simulator's
+  terminal stops it) from the repo folder, with the project's `.venv` Python because OPC UA needs `asyncua`
   (`sim/requirements.txt`; the `.venv` is gitignored and was created on 2026-10-05):
   `.\.venv\Scripts\python.exe -m sim.modbus_server --port 15020 --start <a daytime UTC time, e.g. 2026-10-05T17:00:00Z> --seed 1`.
   Without it the gateways' Modbus devices fault and tags read bad. With plain `python` (no `asyncua`) only Modbus runs and

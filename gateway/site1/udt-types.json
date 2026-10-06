@@ -20,6 +20,12 @@
         {
           "dataType": "Float8",
           "expression": "{[.]Raw/W} * pow(10, {[.]Raw/W_SF}) / 1000",
+          "historicalDeadband": 1.0,
+          "historyEnabled": true,
+          "historyMaxAge": 1,
+          "historyMaxAgeUnits": "MIN",
+          "historyProvider": "Historian",
+          "historyTimeDeadband": 5,
           "name": "ACPower_kW",
           "tagType": "AtomicTag",
           "valueSource": "expr"
@@ -146,6 +152,12 @@
         {
           "dataType": "Float8",
           "expression": "{[.]Raw/W} * pow(10, {[.]Raw/W_SF}) / 1000000",
+          "historicalDeadband": 0.005,
+          "historyEnabled": true,
+          "historyMaxAge": 1,
+          "historyMaxAgeUnits": "MIN",
+          "historyProvider": "Historian",
+          "historyTimeDeadband": 5,
           "name": "POI_MW",
           "tagType": "AtomicTag",
           "valueSource": "expr"
@@ -308,6 +320,12 @@
         {
           "dataType": "Float8",
           "expression": "{[.]Raw/POAI}",
+          "historicalDeadband": 5.0,
+          "historyEnabled": true,
+          "historyMaxAge": 1,
+          "historyMaxAgeUnits": "MIN",
+          "historyProvider": "Historian",
+          "historyTimeDeadband": 5,
           "name": "POA_Wm2",
           "tagType": "AtomicTag",
           "valueSource": "expr"

@@ -15,3 +15,4 @@ changes, add a new ADR that supersedes the old one.
 | [0008](0008-phase1-simulated-site-orientation-clouds-signals.md) | Phase 1 simulated site, panel orientation, clouds, and weather and meter signals | Accepted |
 | [0009](0009-phase1-weather-meter-layouts-unit-ids-inverter-details.md) | Weather station and meter layouts, unit IDs, and inverter details | Accepted |
 | [0010](0010-phase1-opcua-plant-controller-server.md) | OPC UA plant controller server in the simulator | Accepted (security off, dev only) |
+| [0011](0011-phase1-historian-database-connection-and-sampling.md) | Phase 1 database connection, SQL Historian, and history sampling | Accepted |
