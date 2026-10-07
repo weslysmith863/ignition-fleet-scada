@@ -16,6 +16,7 @@ import sys
 import urllib.parse
 from dataclasses import dataclass
 
+from generator import sites
 from generator.gateway import DEVICE_TYPE, OPC_CONNECTION_TYPE, GatewayError, RestGateway
 from generator.points import PointsError, read_points
 
@@ -49,7 +50,7 @@ def plan(gateway, rows):
     opc_host = opc_rows[0].host if opc_rows else host  # the plant controller row names its own host; otherwise the Modbus one
     changes = []
     for row in modbus_rows:
-        existing = gateway.device(row.device)
+        existing = gateway.device(row.resource_name)
         if existing is None:
             continue  # generator.apply creates it with the right host
         connectivity = existing["config"]["settings"]["connectivity"]
@@ -57,7 +58,7 @@ def plan(gateway, rows):
             updated = copy.deepcopy(existing)
             updated["config"]["settings"]["connectivity"]["hostname"] = row.host
             updated["config"]["settings"]["connectivity"]["port"] = row.port
-            changes.append(Change("device %s" % row.device, DEVICE_TYPE, updated,
+            changes.append(Change("device %s" % row.resource_name, DEVICE_TYPE, updated,
                                   "%s:%s" % (connectivity.get("hostname"), connectivity.get("port")), "%s:%d" % (row.host, row.port)))
     connection = gateway.opc_connection(CONNECTION_NAME)
     if connection is not None:
@@ -85,7 +86,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         rows = [row for row in read_points(args.points) if row.site == args.site]
-        gateway = RestGateway(args.site)
+        gateway = RestGateway(sites.gateway_for(args.site))
         changes = plan(gateway, rows)
         print("== %s ==" % args.site)
         if not changes:

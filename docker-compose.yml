@@ -14,6 +14,22 @@ x-gateway: &gateway
     DISABLE_QUICKSTART: "true"
     TZ: ${TZ:-America/Chicago}
 
+# The simulator for an OEM-integrated site (ADR 0015): the same image as sim, read over Modbus only, so its OPC UA plant
+# controller is switched off and its health check waits for the Modbus port alone. The plant's shape comes from the
+# SIM_ settings of each service. Nothing is published on this PC: only the hub reads these, as oem1:15020 and so on.
+x-oem-sim: &oem-sim
+  build:
+    context: .
+    dockerfile: sim/Dockerfile
+  restart: unless-stopped
+  command: ["python", "-m", "sim.modbus_server", "--host", "0.0.0.0", "--port", "15020", "--opcua-port", "0"]
+  healthcheck:
+    test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 15020), 3).close()"]
+    interval: 10s
+    timeout: 5s
+    retries: 6
+    start_period: 10s
+
 services:
   hub:
     <<: *gateway
@@ -146,6 +162,17 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+
+  # OEM-integrated site 1 (ADR 0015): three 1500 kW inverters (4.5 MWac). Units 1 to 3 are the inverters, 4 the weather
+  # station, 5 the meter. The hub reads it as oem1:15020 and keeps its tags in a provider named oem1.
+  oem1:
+    <<: *oem-sim
+    environment:
+      SIM_START: ${SIM_START:-}
+      SIM_INVERTERS: "3"
+      SIM_INVERTER_KW: "1500"
+      SIM_SEED: "3"
+      TZ: ${TZ:-America/Chicago}
 
 # Named volumes keep gateway state (config, projects, license) and database files across container recreation.
 volumes:

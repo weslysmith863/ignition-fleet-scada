@@ -32,7 +32,7 @@
         "transforms": [
           {
             "type": "script",
-            "code": "\tresults = system.tag.browse(\"\").getResults()\n\tsites = [str(r[\"name\"]) for r in results if str(r[\"name\"]) not in (\"System\", \"default\")]\n\tpaths = []\n\tfor s in sites:\n\t\tpaths.append(\"[%s]Meter/POI_MW\" % s)\n\t\tpaths.append(\"[%s]PlantController/RatedMW\" % s)\n\tvalues = system.tag.readBlocking(paths) if paths else []\n\toutput = sum([values[i].value for i in range(0, len(values), 2) if values[i].quality.isGood()])\n\trated = sum([values[i].value for i in range(1, len(values), 2) if values[i].quality.isGood()])\n\treturn {\"output\": output, \"rated\": rated, \"count\": len(sites)}"
+            "code": "\tresults = system.tag.browse(\"\").getResults()\n\tsites = [str(r[\"name\"]) for r in results if str(r[\"name\"]) not in (\"System\", \"default\")]\n\tpaths = []\n\tfor s in sites:\n\t\tpaths.append(\"[%s]Meter/POI_MW\" % s)\n\t\tpaths.append(\"[%s]Site/RatedMW\" % s)\n\tvalues = system.tag.readBlocking(paths) if paths else []\n\toutput = sum([values[i].value for i in range(0, len(values), 2) if values[i].quality.isGood()])\n\trated = sum([values[i].value for i in range(1, len(values), 2) if values[i].quality.isGood()])\n\treturn {\"output\": output, \"rated\": rated, \"count\": len(sites)}"
           }
         ]
       }

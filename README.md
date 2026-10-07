@@ -38,7 +38,7 @@ simulator, Ignition tags and templates, history in PostgreSQL, and browser scree
   every site gateway (the inverter list comes from the tags).
 - **Documentation**: 14 architecture decision records, four layer cards, a domain primer, and findings logs of what the
   experiments showed, including the mistakes.
-- **Tests**: 268 automated tests (98 simulator, 170 generator and tooling), standard library only.
+- **Tests**: 302 automated tests (98 simulator, 204 generator and tooling), standard library only.
 
 ## What it demonstrates
 

@@ -61,7 +61,8 @@ flowchart LR
 | The `site` project, unchanged, on both site gateways (inverter list from a tag browse, header from the system name) | Built 2026-10-06 (finding 52) |
 | `core`, `site`, `fleet` projects with inheritance; `generator.deploy_all` | Built 2026-10-06 (finding 56) |
 | The hub's fleet overview: every site through its remote provider, the site list found by browsing the providers | Built 2026-10-06 (finding 57) |
-| Six OEM sites: `oem1` to `oem6` and their providers | Planned |
+| OEM site `oem1`: simulator service, points file, generator mapping to the hub, local provider (ADR 0015) | Files written 2026-10-06; waiting for the container and the hub provider |
+| OEM sites `oem2` to `oem6` | Planned, after `oem1` is live (the 8-or-5 decision) |
 | Battery model | Planned, after primer part 2 |
 | Simulator plant shape from `--inverters`, `--inverter-kw`, `--seed` or `SIM_INVERTERS`, `SIM_INVERTER_KW`, `SIM_SEED`, with unit IDs by inverter count | Built 2026-10-06 (tests, and a 6-inverter run read over Modbus); the `sim2` container that uses it is still planned |
 

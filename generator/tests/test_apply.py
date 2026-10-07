@@ -10,6 +10,7 @@ from generator.tests.test_build import FAKE_SCHEMA
 
 ROWS = read_points(pathlib.Path(__file__).resolve().parents[2] / "points" / "site1.csv")
 INVERTERS = [row for row in ROWS if row.kind == "inverter"]
+OEM = read_points(pathlib.Path(__file__).resolve().parents[2] / "points" / "oem1.csv")
 MODBUS = [row for row in ROWS if row.protocol == "modbus"]  # the four inverters, the weather station, and the meter
 ENCRYPTED = {"type": "Embedded", "data": {"ciphertext": "AAAA", "iv": "BBBB"}}  # what the gateway's encrypt route returns, wrapped
 
@@ -279,6 +280,77 @@ class PlantControllerTests(unittest.TestCase):
         gateway.writes.clear()
         apply.apply_rows(gateway, ROWS)
         self.assertEqual(gateway.writes, ["instances"])
+
+
+class OemSiteTests(unittest.TestCase):
+    """oem1 is read by the hub: Modbus devices named with the site, plain tag names, no OPC connection (ADR 0015)."""
+
+    def test_the_devices_carry_the_site_and_the_instances_keep_plain_names_with_the_prefixed_device_as_a_parameter(self):
+        gateway = FakeGateway()
+        report = apply.apply_rows(gateway, OEM)
+        self.assertEqual(sorted(gateway.created_devices), ["oem1_Inv1", "oem1_Inv2", "oem1_Inv3", "oem1_Meter", "oem1_Weather"])
+        folder_payload = gateway.imports[0][1]["tags"][0]
+        self.assertEqual([t["name"] for t in folder_payload["tags"]], ["Inv1", "Inv2", "Inv3"])
+        self.assertEqual(build.parameter_values(folder_payload["tags"][1])["Device"], "oem1_Inv2")
+        root = gateway.imports[1][1]["tags"]
+        self.assertEqual([(t["name"], build.parameter_values(t)["Device"]) for t in root],
+                         [("Weather", "oem1_Weather"), ("Meter", "oem1_Meter")])
+        self.assertEqual((gateway.created_opc, report.drift), ([], []))
+
+    def test_a_second_run_changes_nothing_and_finds_no_drift(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, OEM)
+        imports = len(gateway.imports)
+        report = apply.apply_rows(gateway, OEM)
+        self.assertEqual((len(gateway.imports), report.drift), (imports, []))
+        self.assertEqual(len(report.unchanged), 10)  # five devices and five instances
+
+    def test_a_device_with_the_site_less_name_is_not_mistaken_for_the_oem_one(self):
+        gateway = FakeGateway()
+        gateway.add_hand_built(INVERTERS[0])  # a site gateway's own Inv1 must not satisfy oem1's Inv1
+        apply.apply_rows(gateway, OEM)
+        self.assertIn("oem1_Inv1", gateway.created_devices)
+
+
+class SiteRatingTagTests(unittest.TestCase):
+    def test_the_tag_is_created_in_a_new_site_folder_with_the_rating_from_the_points_list(self):
+        gateway = FakeGateway()
+        lines, drift = apply.apply_site_rating(gateway, OEM)
+        self.assertEqual((lines, drift), (["created tag Site/RatedMW (4.5 MW)"], False))
+        path, payload, policy = gateway.imports[0]
+        self.assertEqual((path, policy), (None, "Abort"))
+        self.assertEqual(payload["tags"][0]["name"], "Site")
+        self.assertEqual(payload["tags"][0]["tags"][0]["value"], 4.5)
+
+    def test_an_existing_matching_tag_is_left_alone(self):
+        gateway = FakeGateway()
+        apply.apply_site_rating(gateway, OEM)
+        gateway.imports.clear()
+        lines, drift = apply.apply_site_rating(gateway, OEM)
+        self.assertEqual((lines, drift, gateway.imports), (["unchanged: tag Site/RatedMW"], False, []))
+
+    def test_a_different_value_is_reported_as_drift_and_not_fixed(self):
+        gateway = FakeGateway()
+        apply.apply_site_rating(gateway, OEM)
+        gateway.tags["Site/RatedMW"]["value"] = 9.0
+        lines, drift = apply.apply_site_rating(gateway, OEM)
+        self.assertTrue(drift)
+        self.assertEqual(lines, ["DRIFT: tag Site/RatedMW: value is 9.0, points list says 4.5"])
+        self.assertEqual(gateway.tags["Site/RatedMW"]["value"], 9.0)
+
+    def test_a_dry_run_changes_nothing(self):
+        gateway = FakeGateway()
+        lines, _ = apply.apply_site_rating(gateway, OEM, dry_run=True)
+        self.assertEqual(lines, ["would create tag Site/RatedMW (4.5 MW)"])
+        self.assertEqual(gateway.imports, [])
+
+    def test_a_list_without_inverters_has_nothing_to_do(self):
+        lines, drift = apply.apply_site_rating(FakeGateway(), [row for row in OEM if row.kind == "meter"])
+        self.assertEqual((lines, drift), ([], False))
+
+    def test_the_site_gateways_get_it_too(self):
+        lines, _ = apply.apply_site_rating(FakeGateway(), ROWS)
+        self.assertEqual(lines, ["created tag Site/RatedMW (5.0 MW)"])
 
 
 class WeatherAndMeterTests(unittest.TestCase):

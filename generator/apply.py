@@ -16,7 +16,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from generator import build
+from generator import build, sites
 from generator.gateway import OPC_CONNECTION_TYPE, GatewayError, RestGateway
 from generator.points import PointsError, read_points
 
@@ -38,7 +38,7 @@ def device_drift(row, existing):
     found = {"type": config.get("profile", {}).get("type"), "host": connectivity.get("hostname"),
              "port": connectivity.get("port"), "enabled": existing.get("enabled")}
     wanted = {"type": "ModbusTcp", "host": row.host, "port": row.port, "enabled": True}
-    return ["device %s: %s is %r, points list says %r" % (row.device, key, found[key], wanted[key])
+    return ["device %s: %s is %r, points list says %r" % (row.resource_name, key, found[key], wanted[key])
             for key in wanted if found[key] != wanted[key]]
 
 
@@ -70,11 +70,11 @@ def apply_rows(gateway, rows, dry_run=False):
     missing_devices, missing_connections, missing_instances = [], [], defaultdict(list)
     for row in rows:
         if row.protocol == "modbus":
-            existing = gateway.device(row.device)
+            existing = gateway.device(row.resource_name)
             if existing is None:
                 missing_devices.append(row)
             else:
-                _record(report, "device %s" % row.device, device_drift(row, existing))
+                _record(report, "device %s" % row.resource_name, device_drift(row, existing))
         else:
             existing = gateway.opc_connection(build.OPC_CONNECTION_NAME)
             if existing is None:
@@ -103,7 +103,7 @@ def apply_rows(gateway, rows, dry_run=False):
         if missing_instances and not gateway.wait_for_healthy(OPC_CONNECTION_TYPE, build.OPC_CONNECTION_NAME):
             report.warnings.append("the %s connection was not healthy after waiting; if its instance tags show "
                                    "Bad_NodeIdUnknown, use Restart Tag on them (finding 26)" % build.OPC_CONNECTION_NAME)
-    report.created_devices = ["%s device %s" % (verb, row.device) for row in missing_devices]
+    report.created_devices = ["%s device %s" % (verb, row.resource_name) for row in missing_devices]
     report.created_connections = ["%s OPC connection %s" % (verb, build.OPC_CONNECTION_NAME) for _ in missing_connections]
     for folder, folder_rows in missing_instances.items():
         if not dry_run:
@@ -116,6 +116,27 @@ def apply_rows(gateway, rows, dry_run=False):
                 gateway.import_tags({"tags": instances}, path=folder)
         report.created_instances += ["%s instance %s" % (verb, r.tag_path) for r in folder_rows]
     return report
+
+
+def apply_site_rating(gateway, rows, dry_run=False):
+    """The nameplate rating tag Site/RatedMW, from the points list (ADR 0015). Created if missing, otherwise only compared."""
+    rated_mw = build.site_rating_mw(rows)
+    if rated_mw is None:
+        return [], False
+    existing = gateway.tag("Site/RatedMW")
+    if existing is not None:
+        if existing.get("value") != rated_mw:
+            return ["DRIFT: tag Site/RatedMW: value is %r, points list says %r" % (existing.get("value"), rated_mw)], True
+        return ["unchanged: tag Site/RatedMW"], False
+    line = "tag Site/RatedMW (%s MW)" % rated_mw
+    if dry_run:
+        return ["would create " + line], False
+    tag = build.site_rating_tag(rated_mw)
+    if gateway.tag("Site") is None:
+        gateway.import_tags({"tags": [{"name": "Site", "tagType": "Folder", "tags": [tag]}]})
+    else:
+        gateway.import_tags({"tags": [tag]}, path="Site")
+    return ["created " + line], False
 
 
 def _record(report, label, problems):
@@ -137,7 +158,9 @@ def main(argv=None):
             by_site[row.site].append(row)
         exit_code = 0
         for site, site_rows in by_site.items():
-            report = apply_rows(RestGateway(site), site_rows, dry_run=args.dry_run)
+            gateway = RestGateway(sites.gateway_for(site), provider=sites.provider_for(site))
+            report = apply_rows(gateway, site_rows, dry_run=args.dry_run)
+            rating_lines, rating_drift = apply_site_rating(gateway, site_rows, dry_run=args.dry_run)
             print("== %s ==" % site)
             for line in report.created_devices + report.created_connections + report.created_instances:
                 print("  %s" % line)
@@ -147,7 +170,9 @@ def main(argv=None):
                 print("  DRIFT: %s" % line)
             for line in report.warnings:
                 print("  WARNING: %s" % line)
-            if report.drift:
+            for line in rating_lines:
+                print("  %s" % line)
+            if report.drift or rating_drift:
                 exit_code = 2
         return exit_code
     except (PointsError, GatewayError) as error:

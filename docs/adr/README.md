@@ -19,3 +19,4 @@ changes, add a new ADR that supersedes the old one.
 | [0012](0012-phase1-site-views-as-project-files.md) | Site 1 views are project files in the repo, deployed through the REST API | Accepted (no login, dev only) |
 | [0013](0013-phase1-simulator-as-a-container.md) | The simulator runs as a Compose service named sim | Accepted |
 | [0014](0014-phase2-fleet-shape-simulators-oem-reads-inheritance-battery.md) | Phase 2 fleet shape, simulators, OEM reads, project inheritance, and battery scope | Accepted |
+| [0015](0015-phase2-oem-sites-names-placement-and-nameplate.md) | OEM-integrated sites: names, where their objects live, and the nameplate tag | Accepted (not yet reviewed by Wes) |

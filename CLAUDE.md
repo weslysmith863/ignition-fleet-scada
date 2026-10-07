@@ -66,15 +66,16 @@ explainable.
   and `.env.example` agree (unit IDs, ports, hosts, licenses, whitelist).
 - `generator/` and `points/site1.csv`: the points list and the REST API tooling, all standard library. Each tool is a dry
   run or refuses without a flag, and none overwrites hand-built objects:
-  `python -m generator.apply points/site1.csv [--dry-run]` creates missing devices, the OPC UA connection `PlantController`
+  `python -m generator.apply points/site1.csv [--dry-run]` (any `points/*.csv`; also makes the nameplate tag `Site/RatedMW`) creates missing devices, the OPC UA connection `PlantController`
   (from the `plantcontroller` row), and instances, and reports drift;
   `python -m generator.export_types site1` saves the gateway's UDT definitions to `gateway/site1/udt-types.json`;
   `python -m generator.import_types site1 [--file F] [--provider P] [--apply]` creates the saved definitions that are missing
   (a dry run without `--apply`; it reports drift and never overwrites, except a type named with `--replace TYPE`, which is
   how a changed definition reaches another gateway; a gateway with no saved file of its own takes
   `--file gateway/site1/udt-types.json`);
-  `python -m generator.providers site2 [--apply]` creates the hub's remote tag provider for a site (a dry run without
-  `--apply`);
+  `python -m generator.providers site2 [--apply]` creates the hub's tag provider for a site: remote for a site gateway, a
+  local STANDARD one for an OEM site such as `oem1` (a dry run without `--apply`). `generator/sites.py` says where a site's
+  objects live: an OEM site's devices and tags go on the hub (devices named `<site>_<device>`, ADR 0015);
   `python -m generator.connections site1 [--dry-run]` creates the `fleetdb` PostgreSQL connection (password through the
   encrypt route) and then the SQL Historian provider `Historian`;
   `python -m generator.deploy_project site1 projects/site [--overwrite | --recreate]` deploys a project folder;

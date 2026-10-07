@@ -9,6 +9,7 @@ import pathlib
 import re
 import unittest
 
+from generator import sites as site_rules
 from generator.gateway import GATEWAYS
 from generator.points import read_points
 from sim import sunspec
@@ -18,6 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 COMPOSE = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 ENV_EXAMPLE = (ROOT / ".env.example").read_text(encoding="utf-8")
 POINTS_FILES = sorted((ROOT / "points").glob("site*.csv"))
+OEM_FILES = sorted((ROOT / "points").glob("oem*.csv"))
 DEFAULTS = SiteConfig()
 GATEWAY_INTERNAL_PORT = "8088"
 SIM_MODBUS_PORT, SIM_OPCUA_PORT = 15020, 14840  # what the sim image listens on inside its own container
@@ -142,6 +144,68 @@ class GatewayServiceTests(unittest.TestCase):
                 self.assertEqual(setting(block, "GATEWAY_NETWORK_0_HOST"), "hub")
                 self.assertEqual(setting(block, "GATEWAY_NETWORK_0_PORT"), GATEWAY_INTERNAL_PORT)
                 self.assertEqual(setting(block, "GATEWAY_NETWORK_0_DESCRIPTION"), "%s to hub" % site)
+
+
+def oem_sites():
+    """(file name, site, its rows) for every site in every points/oem*.csv."""
+    for path in OEM_FILES:
+        by_site = {}
+        for row in read_points(path):
+            by_site.setdefault(row.site, []).append(row)
+        for site, rows in by_site.items():
+            yield path.name, site, rows
+
+
+class OemSiteTests(unittest.TestCase):
+    """ADR 0015: an OEM-integrated site is a Modbus plant read by the hub, simulated by its own container."""
+
+    def test_there_is_at_least_oem1_and_every_site_in_these_files_is_a_known_oem_site(self):
+        found = [site for _, site, _ in oem_sites()]
+        self.assertIn("oem1", found)
+        self.assertTrue(all(site_rules.is_oem(site) for site in found), found)
+
+    def test_unit_ids_follow_the_inverter_count_one_rating_one_host_and_no_plant_controller(self):
+        for name, site, rows in oem_sites():
+            with self.subTest(site=site):
+                inverters = [r for r in rows if r.kind == "inverter"]
+                units, weather, meter = sunspec.unit_ids(SiteConfig(inverters=len(inverters)))
+                self.assertEqual(sorted(r.unit_id for r in inverters), list(units), name)
+                self.assertEqual([r.unit_id for r in rows if r.kind == "weather"], [weather], name)
+                self.assertEqual([r.unit_id for r in rows if r.kind == "meter"], [meter], name)
+                self.assertEqual(len({r.rated_kw for r in inverters}), 1, "the simulator has one inverter rating")
+                self.assertEqual({r.host for r in rows}, {site}, "an OEM site's simulator service is named for the site")
+                self.assertEqual({r.port for r in rows}, {SIM_MODBUS_PORT})
+                self.assertEqual([r for r in rows if r.protocol != "modbus"], [], "OEM sites are read over Modbus only")
+
+    def test_each_oem_simulator_service_uses_the_shared_definition_and_is_shaped_like_its_points_list(self):
+        for name, site, rows in oem_sites():
+            with self.subTest(site=site):
+                self.assertIn(site, SERVICES, "%s names a service that does not exist" % name)
+                block = SERVICES[site]
+                self.assertIn("<<: *oem-sim", block)
+                inverters = [r for r in rows if r.kind == "inverter"]
+                self.assertEqual(int(setting(block, "SIM_INVERTERS", DEFAULTS.inverters)), len(inverters))
+                self.assertEqual(float(setting(block, "SIM_INVERTER_KW", DEFAULTS.inverter_ac_w / 1000.0)), inverters[0].rated_kw)
+
+    def test_the_shared_definition_builds_the_sim_image_and_switches_the_opc_ua_plant_controller_off(self):
+        shared = COMPOSE.split("x-oem-sim:", 1)[1].split("\nservices:", 1)[0]
+        self.assertIn("dockerfile: sim/Dockerfile", shared)
+        self.assertIn('"--opcua-port", "0"', shared)
+        self.assertNotIn("14840", shared)  # its health check must not wait for a port that is off
+
+    def test_oem_simulators_use_different_seeds_from_each_other_and_from_the_site_gateways_plants(self):
+        seeds = {}
+        for _, site, rows in list(sites()) + list(oem_sites()):
+            seeds.setdefault(setting(SERVICES[rows[0].host], "SIM_SEED", str(DEFAULTS.seed)), []).append(site)
+        self.assertTrue(all(len(v) == 1 for v in seeds.values()), seeds)
+
+    def test_device_names_are_unique_across_each_gateway_so_oem_devices_do_not_collide_on_the_hub(self):
+        seen = {}
+        for path in sorted((ROOT / "points").glob("*.csv")):
+            for row in read_points(path):
+                key = (site_rules.gateway_for(row.site), row.resource_name)
+                self.assertNotIn(key, seen, "%s is used by %s and %s" % (key, seen.get(key), row.site))
+                seen[key] = row.site
 
 
 class PortTests(unittest.TestCase):

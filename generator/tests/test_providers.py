@@ -90,12 +90,58 @@ class ApplyTests(unittest.TestCase):
         self.assertIn("type is 'STANDARD', wanted 'REMOTE'", lines[0])
 
 
+class OemProviderTests(unittest.TestCase):
+    """An OEM site has no gateway to point at: the hub holds its tags in a local (STANDARD) provider named for the site."""
+
+    def test_the_body_is_a_standard_provider_named_for_the_site(self):
+        body = providers.provider_body("oem1")
+        self.assertEqual((body["name"], body["collection"], body["enabled"]), ("oem1", "core", True))
+        self.assertEqual(body["config"]["profile"]["type"], "STANDARD")
+        self.assertNotIn("serverName", body["config"]["settings"])
+
+    def test_the_body_matches_the_hubs_own_default_provider_settings(self):
+        # What the hub's default provider held on 2026-10-06 (Phase 2 finding 42), apart from its name.
+        self.assertEqual(providers.provider_body("oem1")["config"], {
+            "profile": {"type": "STANDARD", "allowBackfill": False, "enableTagReferenceStore": True},
+            "settings": {"defaultDatasourceName": None, "readPermissions": {"type": "AllOf", "securityLevels": []}, "readOnly": False,
+                         "writePermissions": {"type": "AllOf", "securityLevels": []},
+                         "editPermissions": {"type": "AllOf", "securityLevels": []}, "valuePersistence": "Database"}})
+
+    def test_each_kind_of_site_gets_its_kind_of_provider(self):
+        self.assertEqual(providers.provider_body("site2")["config"]["profile"]["type"], "REMOTE")
+        self.assertEqual(providers.provider_body("oem3")["config"]["profile"]["type"], "STANDARD")
+
+    def test_a_missing_oem_provider_is_created_without_waiting_on_a_remote_link(self):
+        hub = FakeHub()
+        lines, drift = providers.apply_provider(hub, "oem1")
+        self.assertEqual((lines, drift), (["created local tag provider oem1"], False))
+        self.assertEqual(hub.created[0]["config"]["profile"]["type"], "STANDARD")
+
+    def test_a_dry_run_changes_nothing(self):
+        hub = FakeHub()
+        lines, _ = providers.apply_provider(hub, "oem1", dry_run=True)
+        self.assertEqual(lines, ["would create local tag provider oem1"])
+        self.assertEqual(hub.created, [])
+
+    def test_a_matching_oem_provider_is_left_alone(self):
+        hub = FakeHub(existing=providers.provider_body("oem1"))
+        self.assertEqual(providers.apply_provider(hub, "oem1"), (["unchanged: local tag provider oem1"], False))
+
+    def test_a_remote_provider_with_an_oem_name_is_reported_as_drift(self):
+        existing = providers.provider_body("oem1")
+        existing["config"]["profile"]["type"] = "REMOTE"
+        lines, drift = providers.apply_provider(FakeHub(existing=existing), "oem1")
+        self.assertTrue(drift)
+        self.assertIn("type is 'REMOTE', wanted 'STANDARD'", lines[0])
+
+
 class SiteChoiceTests(unittest.TestCase):
     def test_the_hub_cannot_be_its_own_remote_site_and_an_unknown_site_is_refused(self):
         for bad in ("hub", "nowhere"):
             with self.assertRaises(ValueError):
                 providers.check_site(bad)
         providers.check_site("site2")
+        providers.check_site("oem4")
 
 
 if __name__ == "__main__":

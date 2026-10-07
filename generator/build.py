@@ -53,7 +53,7 @@ def modbus_device_body(row, settings_schema):
     settings["connectivity"]["hostname"] = row.host
     settings["connectivity"]["port"] = row.port
     return {
-        "name": row.device,
+        "name": row.resource_name,  # unique across the gateway: an OEM site's devices carry the site (ADR 0015)
         "collection": "core",
         "enabled": True,
         "description": "Generated from the points list",
@@ -90,7 +90,7 @@ def udt_instance(row):
     if row.protocol == "opcua":
         return {"name": row.device, "tagType": "UdtInstance", "typeId": row.udt}
     parameters = {
-        "Device": {"dataType": "String", "value": row.device},
+        "Device": {"dataType": "String", "value": row.resource_name},
         "UnitId": {"dataType": "Integer", "value": row.unit_id},
     }
     if row.rated_kw is not None:
@@ -101,3 +101,14 @@ def udt_instance(row):
 def parameter_values(instance):
     """{parameter name: value} from an exported instance."""
     return {name: spec.get("value") for name, spec in instance.get("parameters", {}).items()}
+
+
+def site_rating_mw(rows):
+    """The site's nameplate AC rating in MW: the sum of its inverters' ratings. None when the rows hold no inverter."""
+    kilowatts = [row.rated_kw for row in rows if row.kind == "inverter"]
+    return round(sum(kilowatts) / 1000.0, 6) if kilowatts else None
+
+
+def site_rating_tag(rated_mw):
+    """The memory tag Site/RatedMW, so a fleet view can read [<site>]Site/RatedMW for any site, controller or not."""
+    return {"name": "RatedMW", "tagType": "AtomicTag", "valueSource": "memory", "dataType": "Float8", "value": rated_mw}

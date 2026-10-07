@@ -51,6 +51,47 @@ HAND_BUILT_OPC_SETTINGS = {
 }
 
 
+OEM_ROW = DeviceRow("oem1", "Inv1", "inverter", 1, "oem1", 15020, 1500.0)
+
+
+class OemBuildTests(unittest.TestCase):
+    """ADR 0015: an OEM site's devices live on the hub, so their device names carry the site; their tags do not."""
+
+    def test_the_device_resource_is_named_with_the_site_and_points_at_the_oem_simulator(self):
+        body = build.modbus_device_body(OEM_ROW, FAKE_SCHEMA)
+        self.assertEqual(body["name"], "oem1_Inv1")
+        self.assertEqual(body["config"]["settings"]["connectivity"]["hostname"], "oem1")
+
+    def test_the_instance_keeps_the_plain_tag_name_and_names_the_prefixed_device(self):
+        instance = build.udt_instance(OEM_ROW)
+        self.assertEqual(instance["name"], "Inv1")  # so the path below [oem1] matches every other site
+        self.assertEqual(build.parameter_values(instance), {"Device": "oem1_Inv1", "UnitId": 1, "RatedKW": 1500.0})
+
+    def test_a_site_gateways_row_is_unchanged(self):
+        self.assertEqual(build.modbus_device_body(ROW, FAKE_SCHEMA)["name"], "Inv1")
+        self.assertEqual(build.udt_instance(ROW), HAND_BUILT_INV1)
+
+
+class SiteRatingTests(unittest.TestCase):
+    """The nameplate rating is a memory tag, Site/RatedMW, made from the points list for every site, so a fleet view can read
+    [<site>]Site/RatedMW whether or not the site has a plant controller."""
+
+    def rows(self, *ratings):
+        inverters = [DeviceRow("oem1", "Inv%d" % (n + 1), "inverter", n + 1, "oem1", 15020, kw) for n, kw in enumerate(ratings)]
+        return inverters + [DeviceRow("oem1", "Meter", "meter", len(ratings) + 1, "oem1", 15020, None)]
+
+    def test_the_rating_is_the_sum_of_the_inverters_in_megawatts(self):
+        self.assertEqual(build.site_rating_mw(self.rows(1500.0, 1500.0, 1500.0)), 4.5)
+        self.assertEqual(build.site_rating_mw(self.rows(1250.0, 1250.0, 1250.0, 1250.0)), 5.0)
+
+    def test_a_list_without_inverters_has_no_rating(self):
+        self.assertIsNone(build.site_rating_mw([DeviceRow("oem1", "Meter", "meter", 1, "oem1", 15020, None)]))
+
+    def test_the_tag_is_a_float_memory_tag_holding_the_value(self):
+        self.assertEqual(build.site_rating_tag(4.5), {"name": "RatedMW", "tagType": "AtomicTag", "valueSource": "memory",
+                                                       "dataType": "Float8", "value": 4.5})
+
+
 class PlantControllerBuildTests(unittest.TestCase):
     def test_a_plant_controller_instance_has_no_parameters_like_the_hand_built_one(self):
         self.assertEqual(build.udt_instance(PLANT_ROW), {"name": "PlantController", "tagType": "UdtInstance", "typeId": "PlantController"})

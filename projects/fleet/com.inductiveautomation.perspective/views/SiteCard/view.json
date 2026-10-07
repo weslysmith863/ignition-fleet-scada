@@ -2,9 +2,7 @@
   "custom": {
     "output": 0,
     "rated": 0,
-    "sun": 0,
-    "status": "",
-    "limitActive": false
+    "sun": 0
   },
   "params": {
     "site": "site1"
@@ -31,7 +29,7 @@
         "type": "tag",
         "config": {
           "mode": "indirect",
-          "tagPath": "[{site}]PlantController/RatedMW",
+          "tagPath": "[{site}]Site/RatedMW",
           "references": {
             "site": "{view.params.site}"
           }
@@ -44,30 +42,6 @@
         "config": {
           "mode": "indirect",
           "tagPath": "[{site}]Weather/POA_Wm2",
-          "references": {
-            "site": "{view.params.site}"
-          }
-        }
-      }
-    },
-    "custom.status": {
-      "binding": {
-        "type": "tag",
-        "config": {
-          "mode": "indirect",
-          "tagPath": "[{site}]PlantController/Status",
-          "references": {
-            "site": "{view.params.site}"
-          }
-        }
-      }
-    },
-    "custom.limitActive": {
-      "binding": {
-        "type": "tag",
-        "config": {
-          "mode": "indirect",
-          "tagPath": "[{site}]PlantController/LimitActive",
           "references": {
             "site": "{view.params.site}"
           }
@@ -226,9 +200,9 @@
         "propConfig": {
           "props.text": {
             "binding": {
-              "type": "property",
+              "type": "expr",
               "config": {
-                "path": "view.custom.status"
+                "expression": "if({view.custom.output} > 0, \"Producing\", \"Standby\")"
               }
             }
           },
@@ -236,33 +210,7 @@
             "binding": {
               "type": "expr",
               "config": {
-                "expression": "if({view.custom.status} = \"Producing\", \"#2e7d32\", if({view.custom.status} = \"Curtailed\", \"#b26a00\", \"#5f6b76\"))"
-              }
-            }
-          }
-        }
-      },
-      {
-        "type": "ia.display.label",
-        "meta": {
-          "name": "Limit"
-        },
-        "position": {
-          "basis": "auto"
-        },
-        "props": {
-          "text": "",
-          "style": {
-            "color": "#5f6b76",
-            "fontSize": "12px"
-          }
-        },
-        "propConfig": {
-          "props.text": {
-            "binding": {
-              "type": "expr",
-              "config": {
-                "expression": "if({view.custom.limitActive}, \"Power limit active\", \"No power limit active\")"
+                "expression": "if({view.custom.output} > 0, \"#2e7d32\", \"#5f6b76\")"
               }
             }
           }

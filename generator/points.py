@@ -3,6 +3,8 @@ import csv
 import re
 from dataclasses import dataclass
 
+from generator import sites
+
 COLUMNS = ("site", "device", "kind", "unit_id", "host", "port", "rated_kw")
 # Each kind of device maps to a UDT and the tag folder its instances live in (ADR 0007); an empty folder means the tag
 # root (Weather, Meter, and PlantController). Only an inverter has a rating: rated_kw is required for it and must stay empty
@@ -38,6 +40,11 @@ class DeviceRow:
     @property
     def folder(self):
         return KINDS[self.kind]["folder"]
+
+    @property
+    def resource_name(self):
+        """The Modbus device's name on its gateway: the plain device name, except an OEM site's, which carries the site."""
+        return sites.resource_name(self.site, self.device)
 
     @property
     def protocol(self):
