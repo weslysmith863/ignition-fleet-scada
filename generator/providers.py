@@ -72,7 +72,15 @@ def provider_drift(existing, site):
         found.update(serverName=config.get("settings", {}).get("serverName"), remoteProviderName=config.get("settings", {}).get("remoteProviderName"))
         wanted.update(serverName=site, remoteProviderName=REMOTE_PROVIDER_NAME)
     label = "local" if sites.is_oem(site) else "remote"
-    return ["%s tag provider %s: %s is %r, wanted %r" % (label, site, key, found[key], wanted[key]) for key in wanted if found[key] != wanted[key]]
+    problems = ["%s tag provider %s: %s is %r, wanted %r" % (label, site, key, found[key], wanted[key]) for key in wanted if found[key] != wanted[key]]
+    if sites.is_oem(site):
+        # A provider whose permissions ask for a security level the API key does not hold refuses every tag import (finding 58).
+        for key in ("readPermissions", "writePermissions", "editPermissions"):
+            have = config.get("settings", {}).get(key)
+            if have != STANDARD_CONFIG["settings"][key]:
+                problems.append("local tag provider %s: %s require a security level (the hub's default provider requires none), so the "
+                                "API key may be refused" % (site, key))
+    return problems
 
 
 def apply_provider(hub, site, dry_run=False):

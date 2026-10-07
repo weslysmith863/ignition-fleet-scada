@@ -135,6 +135,32 @@ class OemProviderTests(unittest.TestCase):
         self.assertIn("type is 'REMOTE', wanted 'STANDARD'", lines[0])
 
 
+class PermissionDriftTests(unittest.TestCase):
+    """A provider whose edit permissions the API key cannot satisfy refuses every tag import (Phase 2 finding 58)."""
+
+    def restricted(self):
+        existing = providers.provider_body("oem1")
+        level = [{"name": "Authenticated", "children": [{"name": "API_RW", "children": []}]}]
+        for key in ("readPermissions", "writePermissions", "editPermissions"):
+            existing["config"]["settings"][key] = {"type": "AnyOf", "securityLevels": level}
+        return existing
+
+    def test_a_provider_that_requires_a_security_level_is_reported_for_each_permission(self):
+        lines, drift = providers.apply_provider(FakeHub(existing=self.restricted()), "oem1")
+        self.assertTrue(drift)
+        for key in ("readPermissions", "writePermissions", "editPermissions"):
+            self.assertTrue(any(key in line for line in lines), (key, lines))
+        self.assertTrue(all(line.startswith("DRIFT: local tag provider oem1") for line in lines))
+
+    def test_the_default_open_permissions_are_not_drift(self):
+        self.assertEqual(providers.provider_drift(providers.provider_body("oem1"), "oem1"), [])
+
+    def test_a_remote_provider_is_not_checked_for_these_permissions(self):
+        existing = providers.provider_body("site2")
+        existing["config"]["settings"]["editPermissions"] = {"type": "AnyOf", "securityLevels": [{"name": "x"}]}
+        self.assertEqual(providers.provider_drift(existing, "site2"), [])
+
+
 class SiteChoiceTests(unittest.TestCase):
     def test_the_hub_cannot_be_its_own_remote_site_and_an_unknown_site_is_refused(self):
         for bad in ("hub", "nowhere"):

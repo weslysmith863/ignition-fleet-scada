@@ -21,6 +21,20 @@ class GatewayError(RuntimeError):
     pass
 
 
+def check_import(result):
+    """A tag import answers HTTP 200 even when the gateway refuses some or all of the tags, and says so in its body
+    (Phase 2 finding 58). Raise with the gateway's own messages instead of letting a refused import look like success."""
+    if not isinstance(result, dict) or not result.get("failureCount"):
+        return
+    failures = result.get("failures") or []
+    messages = sorted({f.get("diagnosticMessage") or "no message" for f in failures})
+    text = "the gateway refused %d of %d tags in the import: %s" % (
+        result["failureCount"], result["failureCount"] + (result.get("successCount") or 0), "; ".join(messages))
+    if any("Permissions" in message for message in messages):
+        text += " (the API key's security level does not satisfy the tag provider's permissions; check the provider's settings)"
+    raise GatewayError(text)
+
+
 def env_value(variable):
     """A value from the gitignored .env. Callers must never print it."""
     for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
@@ -194,5 +208,7 @@ class RestGateway:
         query = {"provider": self.provider, "type": "json", "collisionPolicy": policy}
         if path:
             query["path"] = path
-        return self._call("POST", "/tags/import?" + urllib.parse.urlencode(query), json.dumps(payload).encode("utf-8"),
-                          content_type="application/octet-stream")
+        result = self._call("POST", "/tags/import?" + urllib.parse.urlencode(query), json.dumps(payload).encode("utf-8"),
+                            content_type="application/octet-stream")
+        check_import(result)
+        return result

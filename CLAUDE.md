@@ -108,6 +108,9 @@ explainable.
   checks are healthy. Inside a container `127.0.0.1` is the container itself; containers reach each other by service name (`sim`, `postgres`).
   `python -m generator.retarget site1 points/site1.csv [--apply]` moves existing devices and that connection to the host in
   the points list; it changes only host and port.
+- A tag import answers HTTP 200 even when the gateway refuses the tags; `RestGateway.import_tags` raises on the body's failures
+  (finding 58). A hand-built tag provider may require a security level the API key lacks (`Authenticated/API_RW`); the hub's local
+  providers are left open, a dev-only choice (ADR 0015).
 - A tag that subscribes before its device is healthy can stay on `Bad_NodeIdUnknown` until it is restarted (Restart
   Tag in Designer). The generator creates devices first and waits for them.
 - A gateway's edition is fixed at its first boot (`IGNITION_EDITION`); fixing a wrong one means wiping that

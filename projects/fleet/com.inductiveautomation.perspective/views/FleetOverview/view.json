@@ -276,7 +276,7 @@
               "basis": "auto"
             },
             "props": {
-              "text": "Every site is read through a remote tag provider on this gateway. Simulated data. Personal learning project on Ignition Maker Edition.",
+              "text": "Every site is read through a tag provider on this gateway: a remote one for a site gateway, a local one for an OEM-integrated site. Simulated data. Personal learning project on Ignition Maker Edition.",
               "style": {
                 "color": "#5f6b76",
                 "fontSize": "12px"

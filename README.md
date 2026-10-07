@@ -38,7 +38,7 @@ simulator, Ignition tags and templates, history in PostgreSQL, and browser scree
   every site gateway (the inverter list comes from the tags).
 - **Documentation**: 14 architecture decision records, four layer cards, a domain primer, and findings logs of what the
   experiments showed, including the mistakes.
-- **Tests**: 302 automated tests (98 simulator, 204 generator and tooling), standard library only.
+- **Tests**: 310 automated tests (98 simulator, 212 generator and tooling), standard library only.
 
 ## What it demonstrates
 
@@ -85,7 +85,8 @@ These are deliberate for a local, single-machine project, and each is written do
   OPC UA connection the default password for the gateway's own OPC client key store (`password`, Phase 2 finding 45), a dev
   default for a self-generated certificate. All ports are bound to the loopback interface. None of this is suitable for a
   shared deployment.
-- **Simulated data**: the code labels what is modeled, approximated, or not modeled (Layer Card 1). Fixed-tilt panels, no
+- **Open tag provider permissions**: the hub's local tag providers require no security level (finding 58), so the generator's API
+  key can import tags. A real deployment would restrict read, write, and edit by role., approximated, or not modeled (Layer Card 1). Fixed-tilt panels, no
   trackers, no reactive power, no wind.
 - **Manual steps**: the license token, the `API_RW` security level, the write permission, and the API key. Everything else was
   rebuilt from an empty gateway by the tools (finding 51).

@@ -33,6 +33,11 @@ plant controller, and how the hub keeps history. These are design choices, not t
 6. **History on the hub.** The UDT history settings name a provider called `Historian`, so the hub gets the `fleetdb` connection
    and a `Historian` provider, made by `generator.connections hub`. Fleet history shares the one PostgreSQL.
 
+7. **Tag provider permissions are left open.** The hub's local providers (`default`, `oem1`) require no security level to read,
+   write, or edit, so the API key can import tags (a provider that asks for `Authenticated/API_RW` refused the key, finding 58).
+   This is a dev-only relaxation of the same kind as ADR 0004, 0010, and 0012: every port is bound to this PC's loopback and the
+   screens have no login. A real deployment would restrict read, write, and edit by role and give the key exactly the level it needs.
+
 ## Consequences
 
 - The generator maps a site to its gateway and provider (`generator.apply`, `generator.providers`, `generator.retarget`), and the
