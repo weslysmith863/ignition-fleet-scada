@@ -77,11 +77,16 @@ explainable.
   `--apply`);
   `python -m generator.connections site1 [--dry-run]` creates the `fleetdb` PostgreSQL connection (password through the
   encrypt route) and then the SQL Historian provider `Historian`;
-  `python -m generator.deploy_project site1 projects/site [--overwrite]` deploys a project folder;
+  `python -m generator.deploy_project site1 projects/site [--overwrite | --recreate]` deploys a project folder;
+  `python -m generator.deploy_all [--overwrite | --recreate] [--dry-run]` deploys `core` + `fleet` to the hub and `core` +
+  `site` to every site gateway, parent first;
   `python -m generator.retarget site1 points/site1.csv [--apply]` moves existing devices and the OPC connection to the
   points list's host. Only the `API_RW` level and API key are still manual (the README Quick Start). The steps rebuilt
   site2 from an empty gateway in sequence on 2026-10-06 (finding 51).
-- `projects/site/`: the Perspective project every site gateway runs (Overview, Trends, Controller), written as files by the
+- `projects/`: three Perspective projects written as files by the agent. `core` (inheritable) holds the shared views (Kpi,
+  InverterCard); `site` (parent `core`) runs on every site gateway; `fleet` (parent `core`) runs on the hub and shows every
+  site through its remote tag provider. A child runs only when its parent is on the same gateway, and an existing project
+  whose parent changes must be redeployed with `--recreate` (finding 56). The site project, in more detail: written as files by the
   agent and deployed with `generator.deploy_project`. It names nothing site-specific: the inverter list comes from a tag
   browse, the header from `[System]Gateway/SystemName`, and the limit range from the plant controller's `RatedMW`. The repo copy is the source of truth: a deploy with `--overwrite` replaces the
   gateway's project, including saved Designer edits, so change views in the repo files.

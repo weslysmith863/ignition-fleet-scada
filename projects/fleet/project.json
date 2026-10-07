@@ -1,0 +1,7 @@
+{
+  "title": "Fleet",
+  "description": "Fleet views for the hub gateway: every site side by side through the remote tag providers (ADR 0014)",
+  "enabled": true,
+  "inheritable": false,
+  "parent": "core"
+}

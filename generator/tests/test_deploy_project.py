@@ -94,13 +94,13 @@ class DeployTests(unittest.TestCase):
         self.assertEqual((gateway.imports, gateway.scans), ([], 0))
 
     def test_overwrite_replaces_an_existing_project(self):
-        gateway = FakeGateway(existing={"name": "site"})
+        gateway = FakeGateway(existing={"name": "site", "parent": "core"})
         lines = deploy_project.deploy(gateway, SITE, overwrite=True)
         self.assertTrue(lines[0].startswith("replaced project site"))
         self.assertEqual([(name, overwrite) for name, _, overwrite in gateway.imports], [("site", True)])
 
     def test_a_dry_run_changes_nothing(self):
-        for existing in (None, {"name": "site"}):
+        for existing in (None, {"name": "site", "parent": "core"}):
             gateway = FakeGateway(existing=existing)
             lines = deploy_project.deploy(gateway, SITE, overwrite=True, dry_run=True)
             self.assertTrue(lines[0].startswith("would "))

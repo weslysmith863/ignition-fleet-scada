@@ -1,0 +1,10 @@
+{
+  "pages": {
+    "/": {
+      "viewPath": "FleetOverview"
+    }
+  },
+  "sharedDocks": {
+    "cornerPriority": "top-bottom"
+  }
+}

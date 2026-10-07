@@ -1,0 +1,273 @@
+{
+  "custom": {
+    "output": 0,
+    "rated": 0,
+    "sun": 0,
+    "status": "",
+    "limitActive": false
+  },
+  "params": {
+    "site": "site1"
+  },
+  "propConfig": {
+    "params.site": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "custom.output": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]Meter/POI_MW",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    },
+    "custom.rated": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]PlantController/RatedMW",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    },
+    "custom.sun": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]Weather/POA_Wm2",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    },
+    "custom.status": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]PlantController/Status",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    },
+    "custom.limitActive": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]PlantController/LimitActive",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    }
+  },
+  "props": {
+    "defaultSize": {
+      "width": 340,
+      "height": 200
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "justify": "space-between",
+      "style": {
+        "backgroundColor": "#ffffff",
+        "border": "1px solid #d7dde3",
+        "borderRadius": "8px",
+        "padding": "12px 16px"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Name"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#5f6b76",
+            "fontSize": "12px",
+            "textTransform": "uppercase",
+            "letterSpacing": "0.04em"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.site"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Output"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "32px",
+            "fontWeight": "600"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "numberFormat({view.custom.output}, '0.00') + \" MW\""
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "OfRating"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#5f6b76",
+            "fontSize": "13px"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "if({view.custom.rated} > 0, numberFormat({view.custom.output} / {view.custom.rated} * 100, '0') + \"% of the \" + numberFormat({view.custom.rated}, '0.0') + \" MW rating\", \"\")"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Sunlight"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#5f6b76",
+            "fontSize": "13px"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "\"Sunlight on the panels: \" + numberFormat({view.custom.sun}, '0') + \" W/m²\""
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Status"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#ffffff",
+            "fontSize": "12px",
+            "fontWeight": "600",
+            "padding": "2px 10px",
+            "borderRadius": "10px",
+            "width": "fit-content"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.custom.status"
+              }
+            }
+          },
+          "props.style.backgroundColor": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "if({view.custom.status} = \"Producing\", \"#2e7d32\", if({view.custom.status} = \"Curtailed\", \"#b26a00\", \"#5f6b76\"))"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Limit"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#5f6b76",
+            "fontSize": "12px"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "if({view.custom.limitActive}, \"Power limit active\", \"No power limit active\")"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

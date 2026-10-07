@@ -38,7 +38,7 @@ simulator, Ignition tags and templates, history in PostgreSQL, and browser scree
   every site gateway (the inverter list comes from the tags).
 - **Documentation**: 14 architecture decision records, four layer cards, a domain primer, and findings logs of what the
   experiments showed, including the mistakes.
-- **Tests**: 250 automated tests (98 simulator, 152 generator and tooling), standard library only.
+- **Tests**: 268 automated tests (98 simulator, 170 generator and tooling), standard library only.
 
 ## What it demonstrates
 
@@ -67,8 +67,9 @@ before it changes anything. They rebuilt site2 from an empty gateway in this ord
    (without `--apply` it only reports).
 4. `python -m generator.apply points/site1.csv` creates the Modbus devices, the OPC UA connection `PlantController` (to
    `opc.tcp://sim:14840/fleet-scada/sim`, security None), and the Inverter, Weather, Meter, and PlantController instances.
-5. `python -m generator.deploy_project site1 projects/site` deploys the screens, then open
-   `http://localhost:8091/data/perspective/client/site`.
+5. `python -m generator.deploy_all` deploys the screens: `core` and `site` to each site gateway, `core` and `fleet` to the hub.
+   Then open `http://localhost:8091/data/perspective/client/site` (and `:8092`) for a site, or
+   `http://localhost:8090/data/perspective/client/fleet` for the fleet overview.
 
 `SIM_START` in `.env` pins the simulated start time (for example midday, so the plant is producing); empty means the real clock.
 

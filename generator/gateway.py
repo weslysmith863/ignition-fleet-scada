@@ -121,6 +121,9 @@ class RestGateway:
         except urllib.error.URLError as error:
             raise GatewayError("cannot reach the %s gateway: %s" % (self.site, error.reason))
 
+    def rename_project(self, name, new_name):
+        return self._call("POST", "/projects/rename/%s" % urllib.parse.quote(name), {"name": new_name})
+
     def scan_projects(self):
         """Ask the gateway to rescan project files (a project imported through the API is picked up by itself, but a scan is cheap)."""
         return self._call("POST", "/scan/projects")

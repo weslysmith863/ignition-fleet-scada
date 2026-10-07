@@ -1,0 +1,7 @@
+{
+  "title": "Core",
+  "description": "Views shared by the site and fleet projects (ADR 0014 decision 7)",
+  "enabled": true,
+  "inheritable": true,
+  "parent": ""
+}

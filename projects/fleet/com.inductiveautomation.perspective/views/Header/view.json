@@ -1,0 +1,54 @@
+{
+  "custom": {},
+  "params": {},
+  "props": {
+    "defaultSize": {
+      "width": 1100,
+      "height": 56
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "row",
+      "justify": "space-between",
+      "alignItems": "center",
+      "style": {
+        "backgroundColor": "#1b2733",
+        "padding": "0 12px"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Title"
+        },
+        "position": {
+          "basis": "auto"
+        },
+        "props": {
+          "text": "Fleet overview",
+          "style": {
+            "color": "#ffffff",
+            "fontSize": "18px",
+            "fontWeight": "600"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "{[System]Gateway/SystemName} + \"  ·  fleet overview\""
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

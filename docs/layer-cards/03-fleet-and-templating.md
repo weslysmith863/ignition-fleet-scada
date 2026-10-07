@@ -59,7 +59,8 @@ flowchart LR
 | Remote tag provider `site1` on the hub | Built by hand 2026-10-06; REST creation of a remote provider works (findings 36 to 38) |
 | Remote tag provider `site2` on the hub | Built by `generator.providers` 2026-10-06 (finding 50) |
 | The `site` project, unchanged, on both site gateways (inverter list from a tag browse, header from the system name) | Built 2026-10-06 (finding 52) |
-| `core`, `site`, `fleet` projects with inheritance | Planned |
+| `core`, `site`, `fleet` projects with inheritance; `generator.deploy_all` | Built 2026-10-06 (finding 56) |
+| The hub's fleet overview: every site through its remote provider, the site list found by browsing the providers | Built 2026-10-06 (finding 57) |
 | Six OEM sites: `oem1` to `oem6` and their providers | Planned |
 | Battery model | Planned, after primer part 2 |
 | Simulator plant shape from `--inverters`, `--inverter-kw`, `--seed` or `SIM_INVERTERS`, `SIM_INVERTER_KW`, `SIM_SEED`, with unit IDs by inverter count | Built 2026-10-06 (tests, and a 6-inverter run read over Modbus); the `sim2` container that uses it is still planned |
@@ -86,8 +87,9 @@ flowchart LR
 3. **OEM sites.** The hub's own Modbus devices read the plants directly, and each plant's tags sit in a provider such as `oem3`,
    so the path shape matches. The REST API can create a remote provider (finding 38). To verify: that it can create the
    `STANDARD` providers the OEM sites need, and that Maker allows six.
-4. **Fleet views.** A view takes a site ID and builds the path, the same idea as the InverterCard's `{inverter}` placeholder.
-   To verify when the first fleet view is built: that an indirect binding can fill the provider name and not only a folder.
+4. **Fleet views.** A view takes a site ID and builds the path, the same idea as the InverterCard's `{inverter}` placeholder:
+   an indirect tag binding such as `[{site}]Meter/POI_MW` fills the provider name (finding 57). The list of sites is the hub's
+   own tag providers minus `System` and `default`, found by a tag browse, so a new site or OEM provider shows up by itself.
 
 ## How projects are shared
 
@@ -101,9 +103,10 @@ flowchart TB
 ```
 
 `core` is marked inheritable; `site` and `fleet` name it as their parent in `project.json`. Each gateway holds `core` and its own
-child: site gateways get `site`, the hub gets `fleet`. To verify: that a parent must live on the same gateway as its child, which
-would make `deploy_project` run once per gateway and project. The repo copy is still the source of truth, so a deploy with
-`--overwrite` replaces Designer edits (Layer Card 2).
+child: site gateways get `site`, the hub gets `fleet`. A child runs only when its parent is on the same gateway (finding 56), so
+`generator.deploy_all` puts `core` first on every gateway. Changing an existing project's parent needs `--recreate` (the old
+project is renamed aside, never deleted), because an overwrite leaves the running copy blind to the new parent's views. The repo
+copy is still the source of truth, so a deploy with `--overwrite` replaces Designer edits (Layer Card 2).
 
 ## How it fails (and what we do about it)
 
