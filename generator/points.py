@@ -14,6 +14,7 @@ KINDS = {
     "inverter": {"udt": "Inverter", "folder": "Inverters", "rated": True, "protocol": "modbus"},
     "weather": {"udt": "Weather", "folder": "", "rated": False, "protocol": "modbus"},
     "meter": {"udt": "Meter", "folder": "", "rated": False, "protocol": "modbus"},
+    "battery": {"udt": "Battery", "folder": "", "rated": False, "protocol": "modbus"},  # ADR 0016: unit N+3, read-only telemetry
     "plantcontroller": {"udt": "PlantController", "folder": "", "rated": False, "protocol": "opcua"},
 }
 NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")

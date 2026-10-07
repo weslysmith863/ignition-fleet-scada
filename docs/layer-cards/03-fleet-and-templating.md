@@ -63,8 +63,24 @@ flowchart LR
 | The hub's fleet overview: every site through its remote provider, the site list found by browsing the providers | Built 2026-10-06 (finding 57) |
 | OEM site `oem1`: simulator service, points file, generator mapping to the hub, local provider (ADR 0015) | Built and live 2026-10-06 (finding 59) |
 | OEM sites `oem2` to `oem6` | Built and live 2026-10-06 (findings 60 and 61); eight sites are live from their points lists |
-| Battery model | Planned, after primer part 2 |
+| Battery in the simulator: model, SunSpec models 713 and 802 as unit 7, two plant controller nodes, `SIM_BATTERY_KW` and `SIM_BATTERY_KWH`, the `battery` row kind (ADR 0016) | Built 2026-10-07 with unit tests; not yet run in the `sim` container |
+| Battery UDT and its first instance on site1 | Planned: Wes hand-builds them in Designer; the generator's dry run then checks them |
 | Simulator plant shape from `--inverters`, `--inverter-kw`, `--seed` or `SIM_INVERTERS`, `SIM_INVERTER_KW`, `SIM_SEED`, with unit IDs by inverter count | Built 2026-10-06 (tests, and a 6-inverter run read over Modbus); the `sim2` container that uses it is still planned |
+
+## The battery (ADR 0016)
+
+Site 1's simulator has a 2.5 MW / 10 MWh AC-coupled battery (primer part 2, section 7). It reaches Ignition by two routes, because
+a battery has two jobs: telling you how it is, and being told what to do.
+
+- **Telemetry over Modbus.** Unit 7 on the same endpoint as the inverters serves SunSpec models 713 and 802, read-only: state of
+  charge, power (positive while discharging), charge status, energy rating and energy available. The addresses are in
+  `docs/points/site1-register-map.md`.
+- **Control over OPC UA.** The plant controller (the EMS role) gets two writable nodes on a plant that has a battery: `BatteryMode`
+  (Idle, Charge, Discharge) and `BatterySetpoint_MW`. The plant controller, not the register map, is where SCADA gives orders.
+- **One UDT, two sources.** The Battery UDT holds Modbus members (through the device) and these two OPC UA members (through the
+  `PlantController` connection), so a site with no battery has no Battery instance and no dangling tags.
+- **What the meter sees.** The POI meter reads PV plus battery, with the battery negative while it charges. Export is held at the
+  lower of the plant rating and the plant controller's limit, so a discharge at full sun is reduced to nothing.
 
 ## How a site is made from a row
 

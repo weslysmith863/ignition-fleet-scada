@@ -105,6 +105,20 @@ class SimulatorServiceTests(unittest.TestCase):
                 self.assertEqual(int(setting(block, "SIM_INVERTERS", DEFAULTS.inverters)), len(inverters))
                 self.assertEqual(float(setting(block, "SIM_INVERTER_KW", DEFAULTS.inverter_ac_w / 1000.0)), inverters[0].rated_kw)
 
+    def test_a_battery_row_is_unit_n_plus_3_and_exists_exactly_where_the_simulator_has_a_battery(self):
+        """ADR 0016: the simulator serves a battery as unit N+3 when SIM_BATTERY_KW and SIM_BATTERY_KWH are set."""
+        for name, site, rows in sites():
+            with self.subTest(site=site):
+                block = SERVICES[rows[0].host]
+                batteries = [r for r in rows if r.kind == "battery"]
+                has_settings = setting(block, "SIM_BATTERY_KW") is not None
+                self.assertEqual(has_settings, setting(block, "SIM_BATTERY_KWH") is not None, "both battery settings or neither")
+                self.assertEqual(len(batteries), 1 if has_settings else 0, "%s: a battery row for the simulator's battery, and only then" % name)
+                if batteries:
+                    inverters = [r for r in rows if r.kind == "inverter"]
+                    config = SiteConfig(inverters=len(inverters), battery_w=1.0, battery_wh=1.0)
+                    self.assertEqual(batteries[0].unit_id, sunspec.battery_unit(config))
+
     def test_two_sites_do_not_share_a_simulator(self):
         hosts = [rows[0].host for _, _, rows in sites()]
         self.assertEqual(len(hosts), len(set(hosts)))

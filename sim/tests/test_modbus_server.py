@@ -114,7 +114,7 @@ class SimulationTests(unittest.TestCase):
 
 
 def arguments(**given):
-    values = {"inverters": None, "inverter_kw": None, "seed": None, "no_clouds": False}
+    values = {"inverters": None, "inverter_kw": None, "seed": None, "no_clouds": False, "battery_kw": None, "battery_kwh": None}
     values.update(given)
     return SimpleNamespace(**values)
 
@@ -143,6 +143,24 @@ class PlantConfigTests(unittest.TestCase):
     def test_values_the_register_map_cannot_hold_are_errors_not_silent_clamps(self):
         for given in ({"SIM_INVERTERS": "0"}, {"SIM_INVERTERS": "246"}, {"SIM_INVERTERS": "many"},
                       {"SIM_INVERTER_KW": "0"}, {"SIM_INVERTER_KW": "2001"}, {"SIM_SEED": "x"}):
+            with self.assertRaises(ValueError, msg=str(given)):
+                plant_config(arguments(), given)
+
+    def test_a_battery_comes_from_its_two_settings_together(self):
+        config = plant_config(arguments(), {"SIM_BATTERY_KW": "2500", "SIM_BATTERY_KWH": "10000"})
+        self.assertEqual((config.battery_w, config.battery_wh, config.has_battery), (2.5e6, 1.0e7, True))
+        self.assertFalse(plant_config(arguments(), {"SIM_BATTERY_KW": "", "SIM_BATTERY_KWH": " "}).has_battery)
+        self.assertFalse(plant_config(arguments(), {"SIM_BATTERY_KW": "0", "SIM_BATTERY_KWH": "0"}).has_battery)
+
+    def test_battery_arguments_win_over_settings(self):
+        config = plant_config(arguments(battery_kw=1000.0, battery_kwh=4000.0), {"SIM_BATTERY_KW": "2500", "SIM_BATTERY_KWH": "10000"})
+        self.assertEqual((config.battery_w, config.battery_wh), (1.0e6, 4.0e6))
+
+    def test_battery_values_the_registers_cannot_hold_are_errors(self):
+        for given in ({"SIM_BATTERY_KW": "2500"}, {"SIM_BATTERY_KWH": "10000"},  # one without the other
+                      {"SIM_BATTERY_KW": "-1", "SIM_BATTERY_KWH": "10000"}, {"SIM_BATTERY_KW": "32001", "SIM_BATTERY_KWH": "10000"},
+                      {"SIM_BATTERY_KW": "2500", "SIM_BATTERY_KWH": "65001"}, {"SIM_BATTERY_KW": "x", "SIM_BATTERY_KWH": "10000"},
+                      {"SIM_INVERTERS": "245", "SIM_BATTERY_KW": "2500", "SIM_BATTERY_KWH": "10000"}):
             with self.assertRaises(ValueError, msg=str(given)):
                 plant_config(arguments(), given)
 

@@ -12,7 +12,8 @@ from sim.sunspec_layouts import LAYOUTS
 NOON = datetime(2026, 6, 21, 18, 50, tzinfo=timezone.utc)
 NIGHT = datetime(2026, 6, 21, 6, 0, tzinfo=timezone.utc)
 CLEAR = SiteConfig(clouds_enabled=False)
-EXPECTED_BODY_LENGTH = {1: 66, 103: 50, 123: 24, 203: 105, 302: 5, 303: 1, 307: 11}
+EXPECTED_BODY_LENGTH = {1: 66, 103: 50, 123: 24, 203: 105, 302: 5, 303: 1, 307: 11, 713: 7, 802: 62}
+BATTERY = replace(CLEAR, battery_w=2.5e6, battery_wh=10.0e6)  # Site 1's battery (ADR 0016): unit 7
 
 
 def registers_at(when, limit_mw=None):
@@ -25,6 +26,12 @@ def registers_at(when, limit_mw=None):
 
 def value(regs, model_id, point):
     return regs[s.point_index(regs, model_id, point)]
+
+
+def value32(regs, model_id, point):
+    """A 32-bit point: the high word comes first."""
+    index = s.point_index(regs, model_id, point)
+    return (regs[index] << 16) | regs[index + 1]
 
 
 def signed(v):
@@ -150,6 +157,113 @@ class UnitIdTests(unittest.TestCase):
         state = PlantModel(config).step(NOON, 1.0)
         other = s.all_registers(state, config, random.Random(0), noise=False)
         self.assertEqual(text(other[1], 1, "Md"), "SIM-INV-1000")
+
+
+def battery_registers_at(when, mode=None, setpoint_mw=0.0, config=BATTERY, seconds=1.0):
+    model = PlantModel(config)
+    if mode is not None:
+        model.set_battery(mode, setpoint_mw)
+    state = model.step(when, seconds)
+    return state, s.all_registers(state, config, random.Random(0), noise=False)
+
+
+class BatteryRegisterTests(unittest.TestCase):
+    """ADR 0016 decision 8: the battery is unit N+3, with the common block and SunSpec models 713 and 802, read-only."""
+
+    def test_the_battery_is_unit_n_plus_3_and_only_when_there_is_one(self):
+        self.assertEqual(s.battery_unit(BATTERY), 7)
+        self.assertEqual(s.battery_unit(replace(BATTERY, inverters=6)), 9)
+        self.assertIsNone(s.battery_unit(CLEAR))
+        _, with_battery = battery_registers_at(NIGHT)
+        _, without = registers_at(NIGHT)
+        self.assertEqual(sorted(with_battery), [1, 2, 3, 4, 5, 6, 7])
+        self.assertEqual(sorted(without), [1, 2, 3, 4, 5, 6])
+
+    def test_the_other_devices_are_unchanged_by_a_battery(self):
+        _, with_battery = battery_registers_at(NOON)
+        _, without = registers_at(NOON)
+        for unit in range(1, 7):
+            self.assertEqual(with_battery[unit], without[unit], unit)
+
+    def test_the_chain_is_common_then_713_then_802(self):
+        _, regs = battery_registers_at(NIGHT)
+        bat = regs[7]
+        self.assertEqual(bat[0:2], [0x5375, 0x6E53])
+        self.assertEqual(s.find_model(bat, 1), 2)
+        self.assertEqual(s.find_model(bat, 713), 70)
+        self.assertEqual(s.find_model(bat, 802), 70 + 9)
+        self.assertEqual(bat[-2:], [0xFFFF, 0])
+        self.assertEqual(text(bat, 1, "Md"), "SIM-BATTERY-2500")
+        self.assertEqual(value(bat, 1, "DA"), 7)
+
+    def test_an_idle_battery_at_half_charge(self):
+        _, regs = battery_registers_at(NIGHT)
+        bat = regs[7]
+        self.assertEqual((value(bat, 802, "WHRtg_SF"), value(bat, 802, "WHRtg")), (3, 10000))  # 10,000 kWh
+        self.assertEqual(value(bat, 802, "WChaRteMax"), 2500)  # kW
+        self.assertEqual(value(bat, 802, "WDisChaRteMax"), 2500)
+        self.assertEqual(signed(value(bat, 802, "SoC_SF")), -2)
+        self.assertEqual(value(bat, 802, "SoC"), 5000)
+        self.assertEqual((value(bat, 802, "SoCMax"), value(bat, 802, "SoCMin")), (9000, 1000))
+        self.assertEqual(signed(value(bat, 802, "W")), 0)
+        self.assertEqual(value(bat, 802, "ChaSt"), s.CHA_HOLDING)
+        self.assertEqual(value(bat, 802, "State"), s.BAT_STANDBY)
+        self.assertEqual((value(bat, 802, "Typ"), value(bat, 802, "LocRemCtl")), (s.TYP_LITHIUM_ION, s.CTL_REMOTE))
+        self.assertEqual(value(bat, 802, "SoH"), 10000)
+        self.assertEqual(value(bat, 802, "DoD"), 5000)  # half of the 10 to 90 percent window is used
+        self.assertEqual(value32(bat, 802, "NCyc"), 0)
+        self.assertEqual(value(bat, 802, "V"), 0xFFFF)  # not implemented
+
+    def test_model_713_agrees_with_model_802(self):
+        _, regs = battery_registers_at(NIGHT)
+        bat = regs[7]
+        self.assertEqual(value(bat, 713, "WHRtg"), value(bat, 802, "WHRtg"))
+        self.assertEqual(value(bat, 713, "SoC"), value(bat, 802, "SoC"))
+        self.assertEqual(value(bat, 713, "WH_SF"), 3)
+        self.assertEqual(signed(value(bat, 713, "Pct_SF")), -2)
+        self.assertEqual(value(bat, 713, "WHAvail"), 4000)  # 5,000 kWh stored less the 1,000 kWh below the 10 percent limit
+        self.assertEqual(value(bat, 713, "Sta"), 0xFFFF)
+
+    def test_discharging_reads_as_positive_watts_connected_and_discharging(self):
+        _, regs = battery_registers_at(NIGHT, "Discharge", 2.0)
+        bat = regs[7]
+        self.assertEqual(signed(value(bat, 802, "W")), 2000)
+        self.assertEqual(value(bat, 802, "ChaSt"), s.CHA_DISCHARGING)
+        self.assertEqual(value(bat, 802, "State"), s.BAT_CONNECTED)
+
+    def test_charging_reads_as_negative_watts(self):
+        _, regs = battery_registers_at(NIGHT, "Charge", 1.5)
+        bat = regs[7]
+        self.assertEqual(signed(value(bat, 802, "W")), -1500)
+        self.assertEqual(value(bat, 802, "ChaSt"), s.CHA_CHARGING)
+        self.assertEqual(value(bat, 802, "State"), s.BAT_CONNECTED)
+
+    def test_asking_for_power_at_a_limit_reads_as_soc_protection(self):
+        empty = replace(BATTERY, battery_soc_start=0.10)
+        _, regs = battery_registers_at(NIGHT, "Discharge", 2.0, empty)
+        self.assertEqual(signed(value(regs[7], 802, "W")), 0)
+        self.assertEqual((value(regs[7], 802, "ChaSt"), value(regs[7], 802, "State")), (s.CHA_EMPTY, s.BAT_SOC_PROTECTION))
+        full = replace(BATTERY, battery_soc_start=0.90)
+        _, regs = battery_registers_at(NIGHT, "Charge", 2.0, full)
+        self.assertEqual((value(regs[7], 802, "ChaSt"), value(regs[7], 802, "State")), (s.CHA_FULL, s.BAT_SOC_PROTECTION))
+
+    def test_an_empty_battery_that_is_not_asked_for_power_is_standby(self):
+        empty = replace(BATTERY, battery_soc_start=0.10)
+        _, regs = battery_registers_at(NIGHT, None, 0.0, empty)
+        self.assertEqual((value(regs[7], 802, "ChaSt"), value(regs[7], 802, "State")), (s.CHA_EMPTY, s.BAT_STANDBY))
+
+    def test_a_discharge_blocked_only_by_the_export_cap_is_standby_not_protection(self):
+        _, regs = battery_registers_at(NOON, "Discharge", 2.5)  # full sun: no room under the plant rating
+        self.assertEqual(signed(value(regs[7], 802, "W")), 0)
+        self.assertEqual((value(regs[7], 802, "ChaSt"), value(regs[7], 802, "State")), (s.CHA_HOLDING, s.BAT_STANDBY))
+
+    def test_the_meter_reads_pv_plus_battery_and_counts_imported_energy(self):
+        _, regs = battery_registers_at(NIGHT, "Discharge", 2.0)
+        self.assertEqual(signed(value(regs[6], 203, "W")), 2000)  # kW
+        _, regs = battery_registers_at(NIGHT, "Charge", 1.0, seconds=3600.0)
+        self.assertEqual(signed(value(regs[6], 203, "W")), -1000)
+        self.assertEqual(value32(regs[6], 203, "TotWhImp"), 1000)  # kWh, in the meter's SF 3 units
+        self.assertEqual(value32(regs[6], 203, "TotWhExp"), 0)
 
 
 class ServedValueTests(unittest.TestCase):

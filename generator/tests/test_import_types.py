@@ -9,6 +9,7 @@ from generator.import_types import TypesError
 
 SAVED = pathlib.Path(__file__).resolve().parents[2] / "gateway" / "site1" / "udt-types.json"
 WANTED = import_types.load_types(SAVED)
+ALL_TYPES = ["Battery", "Inverter", "Meter", "PlantController", "Weather"]  # the four Phase 1 types and the battery (ADR 0016)
 
 
 class FakeGateway:
@@ -49,8 +50,8 @@ def by_name(name):
 
 
 class LoadTests(unittest.TestCase):
-    def test_the_saved_file_holds_the_four_phase_1_types(self):
-        self.assertEqual(sorted(t["name"] for t in WANTED), ["Inverter", "Meter", "PlantController", "Weather"])
+    def test_the_saved_file_holds_the_four_phase_1_types_and_the_battery(self):
+        self.assertEqual(sorted(t["name"] for t in WANTED), ALL_TYPES)
 
     def test_a_file_that_is_not_the_types_folder_is_refused(self):
         with self.assertRaises(TypesError):
@@ -73,7 +74,7 @@ class DryRunTests(unittest.TestCase):
     def test_an_empty_provider_reports_every_type_missing_and_changes_nothing(self):
         gateway = FakeGateway()
         report = import_types.import_types(gateway, WANTED, apply=False)
-        self.assertEqual(sorted(report.missing), ["Inverter", "Meter", "PlantController", "Weather"])
+        self.assertEqual(sorted(report.missing), ALL_TYPES)
         self.assertEqual(report.created, [])
         self.assertEqual(gateway.imports, [])
 
@@ -82,7 +83,7 @@ class DryRunTests(unittest.TestCase):
         for answer in ("Folder", "Unknown"):
             gateway = FakeGateway(empty_answer=answer)
             report = import_types.import_types(gateway, WANTED, apply=True)
-            self.assertEqual(sorted(report.created), ["Inverter", "Meter", "PlantController", "Weather"], answer)
+            self.assertEqual(sorted(report.created), ALL_TYPES, answer)
             self.assertEqual(report.drift, [], answer)
 
     def test_types_that_match_are_unchanged_whatever_order_their_members_come_in(self):
@@ -91,7 +92,7 @@ class DryRunTests(unittest.TestCase):
             node["tags"].reverse()
         gateway = FakeGateway(shuffled)
         report = import_types.import_types(gateway, WANTED, apply=True)
-        self.assertEqual(sorted(report.unchanged), ["Inverter", "Meter", "PlantController", "Weather"])
+        self.assertEqual(sorted(report.unchanged), ALL_TYPES)
         self.assertEqual((report.missing, report.drift, gateway.imports), ([], [], []))
 
 
@@ -99,19 +100,19 @@ class ApplyTests(unittest.TestCase):
     def test_apply_creates_each_missing_type_with_a_policy_that_cannot_overwrite(self):
         gateway = FakeGateway()
         report = import_types.import_types(gateway, WANTED, apply=True)
-        self.assertEqual(len(gateway.imports), 4)  # one call per type, so one failure cannot hide the others
+        self.assertEqual(len(gateway.imports), len(ALL_TYPES))  # one call per type, so one failure cannot hide the others
         for path, payload, policy in gateway.imports:
             self.assertEqual((path, policy), ("_types_", "Abort"))
             self.assertEqual(len(payload["tags"]), 1)
-        self.assertEqual(sorted(report.created), ["Inverter", "Meter", "PlantController", "Weather"])
+        self.assertEqual(sorted(report.created), ALL_TYPES)
         self.assertEqual(report.drift, [])  # re-read after the import and found to match
 
     def test_apply_creates_only_what_is_missing(self):
         gateway = FakeGateway([by_name("Inverter"), by_name("Weather")])
         report = import_types.import_types(gateway, WANTED, apply=True)
-        self.assertEqual(sorted(report.created), ["Meter", "PlantController"])
+        self.assertEqual(sorted(report.created), ["Battery", "Meter", "PlantController"])
         self.assertEqual(sorted(report.unchanged), ["Inverter", "Weather"])
-        self.assertEqual(sorted(p["tags"][0]["name"] for _, p, _ in gateway.imports), ["Meter", "PlantController"])
+        self.assertEqual(sorted(p["tags"][0]["name"] for _, p, _ in gateway.imports), ["Battery", "Meter", "PlantController"])
 
     def test_a_type_that_differs_is_reported_and_never_overwritten(self):
         hand_built = copy.deepcopy(by_name("Inverter"))
@@ -121,7 +122,7 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual(gateway.types["Inverter"], hand_built)  # untouched
         self.assertTrue(any(line.startswith("Inverter/") for line in report.drift))
         self.assertNotIn("Inverter", report.created + report.unchanged)
-        self.assertEqual(sorted(report.created), ["Meter", "PlantController", "Weather"])  # the rest still go in
+        self.assertEqual(sorted(report.created), ["Battery", "Meter", "PlantController", "Weather"])  # the rest still go in
 
     def test_a_type_that_comes_back_different_after_the_import_is_reported(self):
         gateway = NormalizingGateway()
@@ -140,7 +141,7 @@ class ReplaceTests(unittest.TestCase):
         return node
 
     def test_a_named_type_that_differs_is_replaced_and_read_back(self):
-        gateway = FakeGateway([self.hand_edited("Inverter"), by_name("Meter"), by_name("Weather"), by_name("PlantController")])
+        gateway = FakeGateway([self.hand_edited("Inverter")] + [by_name(n) for n in ("Battery", "Meter", "Weather", "PlantController")])
         report = import_types.import_types(gateway, WANTED, apply=True, replace=["Inverter"])
         self.assertEqual(report.replaced, ["Inverter"])
         self.assertEqual(report.drift, [])
@@ -183,7 +184,7 @@ class ReplaceTests(unittest.TestCase):
     def test_a_replaced_type_that_comes_back_different_is_reported(self):
         class Normalizing(NormalizingGateway):
             pass
-        gateway = Normalizing([self.hand_edited("Weather")] + [by_name(n) for n in ("Inverter", "Meter", "PlantController")])
+        gateway = Normalizing([self.hand_edited("Weather")] + [by_name(n) for n in ("Battery", "Inverter", "Meter", "PlantController")])
         report = import_types.import_types(gateway, WANTED, apply=True, replace=["Weather"])
         self.assertEqual(report.replaced, ["Weather"])
         self.assertTrue(all(line.startswith("after import: Weather/") for line in report.drift), report.drift)

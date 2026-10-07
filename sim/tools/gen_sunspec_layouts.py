@@ -11,7 +11,7 @@ import json
 import pathlib
 import urllib.request
 
-MODELS = (1, 103, 123, 203, 302, 303, 307)
+MODELS = (1, 103, 123, 203, 302, 303, 307, 713, 802)  # 713 and 802 for the battery (ADR 0016)
 TYPE_SIZE = {"uint16": 1, "int16": 1, "sunssf": 1, "enum16": 1, "bitfield16": 1, "pad": 1, "acc16": 1,
              "uint32": 2, "int32": 2, "acc32": 2, "enum32": 2, "bitfield32": 2, "float32": 2}
 URL = "https://raw.githubusercontent.com/sunspec/models/master/json/model_%d.json"

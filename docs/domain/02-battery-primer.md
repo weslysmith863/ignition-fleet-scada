@@ -123,8 +123,10 @@ There are two ways to add a battery to a solar plant [S17][S16]:
   both inverter types, and NREL notes lower charging efficiency from the extra AC and DC conversions [S17][S16]. DOE gives a cost
   comparison: a co-located DC-coupled system costs 8 percent less than separate systems, and an AC-coupled one 7 percent less [S17].
 
-This project models an **AC-coupled** battery (ADR 0014 decision 8). The reason is simplicity: the PV inverters stay exactly as
-they are, and the battery is one more device on the AC bus. The price, following from NREL's note that DC coupling can capture
+This project models an **AC-coupled** battery (ADR 0014 decision 8). The reason is that it is simpler *to model*, not simpler to
+build: a real AC-coupled plant has more hardware, since it needs both inverter types and extra conversions [S17][S16]. In the model
+the PV inverters stay exactly as they are, and the battery is one more device on the AC bus, where a DC-coupled battery would
+change the inverter itself. The price, following from NREL's note that DC coupling can capture
 clipped energy [S16], is that an AC-coupled plant does not recover it that way. This is a choice the model makes, not a claim
 that real plants are built this way.
 

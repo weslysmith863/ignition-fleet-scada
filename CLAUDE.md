@@ -9,7 +9,7 @@ every layer and direct an agent to rebuild the system.
    (https://app.notion.com/p/3ecc8722b14881edb84cd80d6b4dd28a) and its Teach-back Log subpage. They hold the
    status, decisions, phase plan, and what Wes has and has not yet shown he understands. You are ready when you can
    state the current phase, the next three steps, and the working agreement below in your own words.
-2. Run the cold-start checklist (section 10 of that page) before touching gateways. It confirms the 13 containers (hub,
+2. Run the cold-start checklist (section 10 of that page) before touching gateways. It confirms the 12 containers (hub,
    site1, site2, postgres, sim, sim2, and oem1 to oem6) are healthy; Wes types the compose commands. Start
    everything with `docker.exe compose up -d --build` (the `SITE2_*` values must be in `.env`; see the Site 2 gotcha).
 3. Check `docs/adr/` (decisions), `docs/layer-cards/` (layer explanations), and `docs/spikes/` (evidence) before
@@ -69,8 +69,12 @@ explainable.
   `.\.venv\Scripts\python.exe -m sim.modbus_server --port 15020 --start <a daytime UTC time> --seed 1`. With plain `python`
   (no `asyncua`) only Modbus runs and the log says OPC UA is off. Port 5020 is not ours (DosingControl). `sim2` is the same
   image as a six-inverter plant (`SIM_INVERTERS`, `SIM_INVERTER_KW`, `SIM_SEED` in its compose environment; the same names
-  exist as command-line flags, ADR 0014). `generator/tests/test_fleet.py` checks that the points lists, `docker-compose.yml`,
-  and `.env.example` agree (unit IDs, ports, hosts, licenses, whitelist).
+  exist as command-line flags, ADR 0014). Site 1's `sim` also has a 2.5 MW / 10 MWh AC-coupled battery (ADR 0016:
+  `SIM_BATTERY_KW`, `SIM_BATTERY_KWH`; SunSpec models 713 and 802 as unit N+3, 7 on Site 1; two writable plant controller
+  nodes, `BatteryMode` and `BatterySetpoint_MW`, that exist only on a plant with a battery; a `battery` row kind in the points
+  list). To see a discharge, start site1's simulator at night: `$env:SIM_START = "2026-10-06T02:00:00Z"; docker.exe compose up -d sim`,
+  then reset it from a fresh terminal with `docker.exe compose up -d sim`. `generator/tests/test_fleet.py` checks that the
+  points lists, `docker-compose.yml`, and `.env.example` agree (unit IDs, ports, hosts, licenses, whitelist, the battery).
 - `generator/` and `points/site1.csv`: the points list and the REST API tooling, all standard library. Each tool is a dry
   run or refuses without a flag, and none overwrites hand-built objects:
   `python -m generator.apply points/site1.csv [--dry-run]` (any `points/*.csv`; also makes the nameplate tag `Site/RatedMW`) creates missing devices, the OPC UA connection `PlantController`

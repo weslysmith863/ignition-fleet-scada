@@ -8,7 +8,8 @@ from generator import apply, build
 from generator.points import read_points
 from generator.tests.test_build import FAKE_SCHEMA
 
-ROWS = read_points(pathlib.Path(__file__).resolve().parents[2] / "points" / "site1.csv")
+ALL_ROWS = read_points(pathlib.Path(__file__).resolve().parents[2] / "points" / "site1.csv")
+ROWS = [row for row in ALL_ROWS if row.kind != "battery"]  # Site 1 as built in Phase 1; the battery (ADR 0016) has its own tests below
 INVERTERS = [row for row in ROWS if row.kind == "inverter"]
 OEM = read_points(pathlib.Path(__file__).resolve().parents[2] / "points" / "oem1.csv")
 MODBUS = [row for row in ROWS if row.protocol == "modbus"]  # the four inverters, the weather station, and the meter
@@ -399,6 +400,39 @@ class WeatherAndMeterTests(unittest.TestCase):
         self.assertEqual(len(gateway.imports), imports_before)
         self.assertEqual(report.created_devices + report.created_instances + report.drift, [])
         self.assertEqual(len(report.unchanged), 12)
+
+
+class BatteryTests(unittest.TestCase):
+    """ADR 0016: a battery row is one more Modbus device and one more instance at the tag root, with its device name and unit ID."""
+
+    def test_the_battery_is_one_more_device_and_one_more_root_instance(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ALL_ROWS)
+        self.assertEqual(sorted(gateway.created_devices), ["Battery", "Inv1", "Inv2", "Inv3", "Inv4", "Meter", "Weather"])
+        root_payload = gateway.imports[-1][1]
+        self.assertEqual([t["name"] for t in root_payload["tags"]], ["Weather", "Meter", "PlantController", "Battery"])
+        battery = root_payload["tags"][-1]
+        self.assertEqual(battery["typeId"], "Battery")
+        self.assertEqual(build.parameter_values(battery), {"Device": "Battery", "UnitId": 7})  # no RatedKW: its size is in its registers
+
+    def test_a_second_run_with_the_battery_changes_nothing(self):
+        gateway = FakeGateway()
+        apply.apply_rows(gateway, ALL_ROWS)
+        imports_before = len(gateway.imports)
+        report = apply.apply_rows(gateway, ALL_ROWS)
+        self.assertEqual(len(gateway.imports), imports_before)
+        self.assertEqual(report.created_devices + report.created_instances + report.drift, [])
+        self.assertIn("device Battery", report.unchanged)
+        self.assertIn("instance Battery", report.unchanged)
+
+    def test_a_battery_instance_on_the_wrong_unit_is_reported_as_drift_and_not_fixed(self):
+        gateway = FakeGateway()
+        battery = next(row for row in ALL_ROWS if row.kind == "battery")
+        gateway.add_hand_built(battery, instance_overrides={"UnitId": 1})
+        broken = copy.deepcopy(gateway.tags["Battery"])
+        report = apply.apply_rows(gateway, [battery])
+        self.assertEqual(report.drift, ["instance Battery: parameter UnitId is 1, points list says 7"])
+        self.assertEqual(gateway.tags["Battery"], broken)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,12 @@ NOT_IMPLEMENTED = {
 }
 
 ST_OFF, ST_SLEEPING, ST_STARTING, ST_MPPT, ST_THROTTLED = 1, 2, 3, 4, 5  # SunSpec model 103 operating states
+# SunSpec model 802 enumerations, read from the published model definition (ADR 0016)
+CHA_EMPTY, CHA_DISCHARGING, CHA_CHARGING, CHA_FULL, CHA_HOLDING = 2, 3, 4, 5, 6  # ChaSt
+BAT_CONNECTED, BAT_STANDBY, BAT_SOC_PROTECTION = 3, 4, 5  # State
+TYP_LITHIUM_ION, CTL_REMOTE = 4, 0
+BATTERY_MOVING_W = 500.0  # below half a register unit (1 kW) the served power reads 0, so the battery counts as not moving
+BATTERY_EDGE = 0.005  # within half a point of a state of charge limit counts as at the limit
 
 
 def unit_ids(config):
@@ -28,6 +34,11 @@ def unit_ids(config):
     station is N+1, and the meter is N+2. Site 1 (N = 4) keeps its units 1 to 4, 5, and 6 (ADR 0009)."""
     count = config.inverters
     return tuple(range(1, count + 1)), count + 1, count + 2
+
+
+def battery_unit(config):
+    """The battery's unit ID (ADR 0016 decision 8): N+3 on a plant that has a battery, otherwise None. Site 1 (N = 4) is unit 7."""
+    return config.inverters + 3 if config.has_battery else None
 
 
 def raw(value, sf):
@@ -179,9 +190,57 @@ def meter_models(unit, state, rng, noise=True):
         "PhVphCA": raw(METER_VLL, 1), "V_SF": 1,
         "Hz": raw(hz, -2), "Hz_SF": -2,
         "W": raw(poi, 3), "WphA": raw(poi / 3.0, 3), "WphB": raw(poi / 3.0, 3), "WphC": raw(poi / 3.0, 3), "W_SF": 3,
-        "TotWhExp": int(state["energy_wh"] / 1000.0), "TotWhImp": 0, "TotWh_SF": 3,
+        "TotWhExp": int(state["energy_wh"] / 1000.0), "TotWhImp": int(state["energy_import_wh"] / 1000.0), "TotWh_SF": 3,
     }
     return [_common("SIM-METER", unit), (203, meter)]
+
+
+def battery_models(unit, state, config):
+    """Models for the battery (ADR 0016 decision 8): common, 713 (storage capacity), and 802 (battery base). Read-only.
+    Energies and powers use SF 3 (kWh and kW), percentages SF -2. W is positive while discharging (our sign choice)."""
+    rating_wh = config.battery_wh
+    soc = state["battery_soc"]
+    soc_pct = soc * 100.0
+    power = state["battery_w"]
+    moving = abs(power) >= BATTERY_MOVING_W
+    at_low = soc <= config.battery_soc_min + BATTERY_EDGE
+    at_high = soc >= config.battery_soc_max - BATTERY_EDGE
+    if power > 0.0 and moving:
+        charge_status = CHA_DISCHARGING
+    elif power < 0.0 and moving:
+        charge_status = CHA_CHARGING
+    elif at_low:
+        charge_status = CHA_EMPTY
+    elif at_high:
+        charge_status = CHA_FULL
+    else:
+        charge_status = CHA_HOLDING
+    asked = state["battery_mode"]
+    if moving:
+        battery_state = BAT_CONNECTED
+    elif (asked == "Discharge" and at_low) or (asked == "Charge" and at_high):
+        battery_state = BAT_SOC_PROTECTION
+    else:
+        battery_state = BAT_STANDBY
+    available_wh = max(0.0, state["battery_stored_wh"] - rating_wh * config.battery_soc_min)
+    window = config.battery_soc_max - config.battery_soc_min
+    depth_pct = min(100.0, max(0.0, (config.battery_soc_max - soc) / window * 100.0))  # share of the usable window used
+    capacity = {
+        "WHRtg": raw(rating_wh, 3), "WHAvail": raw(available_wh, 3), "WH_SF": 3,
+        "SoC": raw(soc_pct, -2), "SoH": raw(100.0, -2), "Pct_SF": -2,
+    }
+    base = {
+        "WHRtg": raw(rating_wh, 3), "WHRtg_SF": 3,
+        "WChaRteMax": raw(config.battery_w, 3), "WDisChaRteMax": raw(config.battery_w, 3), "WChaDisChaMax_SF": 3,
+        "SoCMax": raw(config.battery_soc_max * 100.0, -2), "SoCMin": raw(config.battery_soc_min * 100.0, -2),
+        "SoC": raw(soc_pct, -2), "SoC_SF": -2,
+        "DoD": raw(depth_pct, -2), "DoD_SF": -2,
+        "SoH": raw(100.0, -2), "SoH_SF": -2,
+        "NCyc": int(state["battery_discharged_wh"] / rating_wh),  # equivalent full cycles, a design choice
+        "ChaSt": charge_status, "LocRemCtl": CTL_REMOTE, "Typ": TYP_LITHIUM_ION, "State": battery_state,
+        "W": raw(power, 3), "W_SF": 3,
+    }
+    return [_common("SIM-BATTERY-%d" % int(round(config.battery_w / 1000.0)), unit), (713, capacity), (802, base)]
 
 
 def all_device_models(state, config, rng, noise=True):
@@ -192,6 +251,8 @@ def all_device_models(state, config, rng, noise=True):
         devices[unit] = inverter_models(unit, index, state, config, rng, noise)
     devices[weather_unit] = weather_models(weather_unit, state)
     devices[meter_unit] = meter_models(meter_unit, state, rng, noise)
+    if config.has_battery:
+        devices[battery_unit(config)] = battery_models(battery_unit(config), state, config)
     return devices
 
 

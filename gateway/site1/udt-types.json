@@ -3,6 +3,186 @@
   "tagType": "Folder",
   "tags": [
     {
+      "name": "Battery",
+      "parameters": {
+        "Device": {
+          "dataType": "String"
+        },
+        "UnitId": {
+          "dataType": "Integer"
+        }
+      },
+      "tagType": "UdtType",
+      "tags": [
+        {
+          "dataType": "String",
+          "expression": "case({[.]Raw/ChaSt}, 1, \"Off\", 2, \"Empty\", 3, \"Discharging\", 4, \"Charging\", 5, \"Full\", 6, \"Holding\", 7, \"Testing\", \"Unknown\")",
+          "name": "ChargeStatus",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/WHAvail} * pow(10, {[.]Raw/WH_SF}) / 1000",
+          "name": "EnergyAvailable_kWh",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/WHRtg} * pow(10, {[.]Raw/WH_SF}) / 1000",
+          "name": "EnergyRating_kWh",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "String",
+          "name": "Mode",
+          "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.BatteryMode",
+          "opcServer": "PlantController",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/W} * pow(10, {[.]Raw/W_SF}) / 1000",
+          "historicalDeadband": 1.0,
+          "historyEnabled": true,
+          "historyMaxAge": 1,
+          "historyMaxAgeUnits": "MIN",
+          "historyProvider": "Historian",
+          "historyTimeDeadband": 5,
+          "name": "Power_kW",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "name": "Raw",
+          "tagType": "Folder",
+          "tags": [
+            {
+              "name": "ChaSt",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUS40096"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "SoC",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUS40091"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "SoC_SF",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40136"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "State",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUS40102"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "W",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40127"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "W_SF",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40143"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "WH_SF",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HR40078"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "WHAvail",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUS40074"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            },
+            {
+              "name": "WHRtg",
+              "opcItemPath": {
+                "bindType": "parameter",
+                "binding": "ns=1;s=[{Device}]{UnitId}.HRUS40073"
+              },
+              "opcServer": "Ignition OPC UA Server",
+              "tagType": "AtomicTag",
+              "valueSource": "opc"
+            }
+          ]
+        },
+        {
+          "dataType": "Float8",
+          "name": "Setpoint_MW",
+          "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.BatterySetpoint_MW",
+          "opcServer": "PlantController",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
+          "dataType": "Float8",
+          "expression": "{[.]Raw/SoC} * pow(10, {[.]Raw/SoC_SF})",
+          "historicalDeadband": 1.0,
+          "historyEnabled": true,
+          "historyMaxAge": 1,
+          "historyMaxAgeUnits": "MIN",
+          "historyProvider": "Historian",
+          "historyTimeDeadband": 5,
+          "name": "SoC_pct",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        },
+        {
+          "dataType": "String",
+          "expression": "case({[.]Raw/State}, 1, \"Disconnected\", 2, \"Initializing\", 3, \"Connected\", 4, \"Standby\", 5, \"SOC protection\", 6, \"Suspending\", 99, \"Fault\", \"Unknown\")",
+          "name": "State",
+          "tagType": "AtomicTag",
+          "valueSource": "expr"
+        }
+      ]
+    },
+    {
       "name": "Inverter",
       "parameters": {
         "Device": {

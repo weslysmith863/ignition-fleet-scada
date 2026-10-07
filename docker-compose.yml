@@ -118,7 +118,8 @@ services:
 
   # The plant simulator (ADR 0013): SunSpec Modbus TCP on 15020 and the OPC UA plant controller on 14840, one program, one
   # clock. Gateways reach it as sim:15020 and sim:14840 on the Compose network. The ports are also published on this PC's
-  # loopback so tools on the PC can reach it. SIM_START (optional, from .env) pins the simulated start time.
+  # loopback so tools on the PC can reach it. SIM_START (optional, from .env) pins the simulated start time. Site 1 has a
+  # 2.5 MW / 10 MWh AC-coupled battery (ADR 0016): unit 7, plus two battery nodes on the plant controller. Only this plant has one.
   sim:
     build:
       context: .
@@ -126,6 +127,8 @@ services:
     restart: unless-stopped
     environment:
       SIM_START: ${SIM_START:-}
+      SIM_BATTERY_KW: "2500"
+      SIM_BATTERY_KWH: "10000"
       TZ: ${TZ:-America/Chicago}
     ports:
       - "127.0.0.1:15020:15020"

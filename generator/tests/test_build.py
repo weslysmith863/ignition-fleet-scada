@@ -157,7 +157,7 @@ class BuildTests(unittest.TestCase):
 
     def test_a_weather_station_and_a_meter_get_only_device_and_unit_id(self):
         # The Weather and Meter UDT definitions have no RatedKW parameter (gateway/site1/udt-types.json).
-        for name, kind, unit, udt in (("Weather", "weather", 5, "Weather"), ("Meter", "meter", 6, "Meter")):
+        for name, kind, unit, udt in (("Weather", "weather", 5, "Weather"), ("Meter", "meter", 6, "Meter"), ("Battery", "battery", 7, "Battery")):
             instance = build.udt_instance(DeviceRow("site1", name, kind, unit, "h", 15020, None))
             self.assertEqual(instance, {"name": name, "tagType": "UdtInstance", "typeId": udt, "parameters": {
                 "Device": {"dataType": "String", "value": name},

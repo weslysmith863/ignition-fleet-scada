@@ -3,7 +3,9 @@
 Serves read-only SunSpec registers for every device of one plant on one endpoint: N inverters on units 1 to N, the weather
 station on unit N+1, and the POI meter on unit N+2 (ADR 0014 decision 9; Site 1 has N = 4, so units 1 to 6). The plant's shape
 comes from --inverters, --inverter-kw, and --seed, or from SIM_INVERTERS, SIM_INVERTER_KW, and SIM_SEED (ADR 0014 decision 3);
-with none of them it is Site 1. A simulation thread steps the plant model once a second and swaps in fresh registers.
+with none of them it is a plain four-inverter plant. A battery (ADR 0016) comes from --battery-kw and --battery-kwh, or
+SIM_BATTERY_KW and SIM_BATTERY_KWH, and is unit N+3 (Site 1's compose service sets them, so it serves units 1 to 7). A
+simulation thread steps the plant model once a second and swaps in fresh registers.
 
 The same process also serves the OPC UA plant controller (sim/opcua_server.py, ADR 0010) on --opcua-port when asyncua is
 installed (sim/requirements.txt); without it the Modbus server runs alone and says so.
@@ -31,6 +33,8 @@ from sim.model import PlantModel, SiteConfig
 MAX_READ_REGISTERS = 125
 MAX_INVERTERS = 245  # the meter is unit N+2, and Modbus unit IDs stop at 247
 MAX_INVERTER_KW = 2000  # W_SF is fixed at 2, so a signed 16-bit register tops out at 3.27 MW, and DC power runs near 1.34 times AC
+MAX_BATTERY_KW = 32000  # the battery's W and rate registers use SF 3 (units of kW): a signed 16-bit W tops out at 32.767 MW (ADR 0016)
+MAX_BATTERY_KWH = 65000  # its energy registers are unsigned 16-bit in kWh
 
 
 def log(message):
@@ -150,6 +154,19 @@ def plant_config(args, environ):
     seed = _setting(args.seed, environ.get("SIM_SEED"), int)
     if seed is not None:
         changes["seed"] = seed
+    battery_kw = _setting(args.battery_kw, environ.get("SIM_BATTERY_KW"), float)
+    battery_kwh = _setting(args.battery_kwh, environ.get("SIM_BATTERY_KWH"), float)
+    if battery_kw or battery_kwh:  # 0 or unset means no battery
+        if not (battery_kw and battery_kwh):
+            raise ValueError("a battery needs both its power (SIM_BATTERY_KW) and its energy (SIM_BATTERY_KWH)")
+        if not 0 < battery_kw <= MAX_BATTERY_KW:
+            raise ValueError("battery kW must be above 0 and at most %d, not %g" % (MAX_BATTERY_KW, battery_kw))
+        if not 0 < battery_kwh <= MAX_BATTERY_KWH:
+            raise ValueError("battery kWh must be above 0 and at most %d, not %g" % (MAX_BATTERY_KWH, battery_kwh))
+        if changes.get("inverters", SiteConfig().inverters) > MAX_INVERTERS - 1:
+            raise ValueError("a plant with a battery has at most %d inverters (the battery is unit N+3)" % (MAX_INVERTERS - 1))
+        changes["battery_w"] = battery_kw * 1000.0
+        changes["battery_wh"] = battery_kwh * 1000.0
     return replace(SiteConfig(), clouds_enabled=not args.no_clouds, **changes)
 
 
@@ -182,6 +199,8 @@ def main(argv=None):
     parser.add_argument("--inverters", type=int, default=None, help="number of inverters (default: the SIM_INVERTERS setting, else 4)")
     parser.add_argument("--inverter-kw", type=float, default=None, help="AC rating of each inverter in kW (default: the SIM_INVERTER_KW setting, else 1250)")
     parser.add_argument("--seed", type=int, default=None, help="cloud seed (default: the SIM_SEED setting, else 1)")
+    parser.add_argument("--battery-kw", type=float, default=None, help="battery power in kW (default: the SIM_BATTERY_KW setting, else no battery)")
+    parser.add_argument("--battery-kwh", type=float, default=None, help="battery energy in kWh (default: the SIM_BATTERY_KWH setting, else no battery)")
     parser.add_argument("--no-clouds", action="store_true")
     parser.add_argument("--verbose", action="store_true", help="log every connection and read")
     args = parser.parse_args(argv)
@@ -197,8 +216,9 @@ def main(argv=None):
     if args.opcua_port:
         start_opcua(simulation, args.host, args.opcua_port)
     server = Server((args.host, args.port), lambda unit: simulation.registers.get(unit), args.verbose)
-    log("simulator serving units %s on %s:%d (%d inverters of %g kW), simulated start %s, seed %d"
-        % (sorted(simulation.registers), args.host, args.port, config.inverters, config.inverter_ac_w / 1000.0,
+    battery = ", battery %g kW / %g kWh" % (config.battery_w / 1000.0, config.battery_wh / 1000.0) if config.has_battery else ""
+    log("simulator serving units %s on %s:%d (%d inverters of %g kW%s), simulated start %s, seed %d"
+        % (sorted(simulation.registers), args.host, args.port, config.inverters, config.inverter_ac_w / 1000.0, battery,
            start.strftime("%Y-%m-%d %H:%M:%SZ"), config.seed))
     try:
         server.serve_forever()

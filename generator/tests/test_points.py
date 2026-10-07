@@ -17,17 +17,19 @@ def read_text(text):
 
 
 class PointsTests(unittest.TestCase):
-    def test_the_real_site_one_list_has_four_inverters_a_weather_station_a_meter_and_a_plant_controller(self):
+    def test_the_real_site_one_list_has_four_inverters_a_weather_station_a_meter_a_plant_controller_and_a_battery(self):
         rows = read_points(REAL_LIST)
-        self.assertEqual([r.device for r in rows], ["Inv1", "Inv2", "Inv3", "Inv4", "Weather", "Meter", "PlantController"])
-        self.assertEqual([r.unit_id for r in rows], [1, 2, 3, 4, 5, 6, None])  # an OPC UA plant controller has no unit ID
+        self.assertEqual([r.device for r in rows], ["Inv1", "Inv2", "Inv3", "Inv4", "Weather", "Meter", "PlantController", "Battery"])
+        self.assertEqual([r.unit_id for r in rows], [1, 2, 3, 4, 5, 6, None, 7])  # an OPC UA plant controller has no unit ID
         inverters = rows[:4]
         self.assertTrue(all(r.kind == "inverter" and r.udt == "Inverter" and r.folder == "Inverters" for r in inverters))
         self.assertEqual({(r.host, r.port, r.rated_kw) for r in inverters}, {("sim", 15020, 1250.0)})
         self.assertEqual([(r.udt, r.rated_kw, r.tag_path) for r in rows[4:]],
-                         [("Weather", None, "Weather"), ("Meter", None, "Meter"), ("PlantController", None, "PlantController")])
-        self.assertEqual([r.protocol for r in rows], ["modbus"] * 6 + ["opcua"])
+                         [("Weather", None, "Weather"), ("Meter", None, "Meter"), ("PlantController", None, "PlantController"),
+                          ("Battery", None, "Battery")])
+        self.assertEqual([r.protocol for r in rows], ["modbus"] * 6 + ["opcua", "modbus"])
         self.assertEqual((rows[6].host, rows[6].port), ("sim", 14840))
+        self.assertEqual((rows[7].host, rows[7].port), ("sim", 15020))
 
     def test_an_inverter_is_found_in_its_folder_and_a_weather_station_at_the_tag_root(self):
         rows = read_text(HEADER + "site1,Inv1,inverter,1,h,15020,1250\nsite1,Weather,weather,5,h,15020,\n")
@@ -113,6 +115,21 @@ class PlantControllerRowTests(unittest.TestCase):
     def test_two_sites_can_each_have_one(self):
         rows = read_text(HEADER + self.ROW + "site2,PlantController,plantcontroller,,sim2,14840,\n")
         self.assertEqual([r.site for r in rows], ["site1", "site2"])
+
+
+class BatteryRowTests(unittest.TestCase):
+    """ADR 0016: the battery is a Modbus device at the tag root, with a unit ID and no rating (its size is in its registers)."""
+
+    def test_a_battery_row_is_a_modbus_device_at_the_tag_root(self):
+        (row,) = read_text(HEADER + "site1,Battery,battery,7,sim,15020,\n")
+        self.assertEqual((row.kind, row.udt, row.folder, row.tag_path), ("battery", "Battery", "", "Battery"))
+        self.assertEqual((row.unit_id, row.protocol, row.rated_kw), (7, "modbus", None))
+
+    def test_a_battery_must_have_a_unit_id_and_no_rating(self):
+        with self.assertRaisesRegex(PointsError, "unit_id is empty"):
+            read_text(HEADER + "site1,Battery,battery,,sim,15020,\n")
+        with self.assertRaisesRegex(PointsError, "rated_kw must be empty for kind battery"):
+            read_text(HEADER + "site1,Battery,battery,7,sim,15020,2500\n")
 
 
 if __name__ == "__main__":

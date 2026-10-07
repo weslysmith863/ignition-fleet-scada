@@ -24,6 +24,11 @@ VARIANT_TYPES = {
     "Status": ua.VariantType.String,
     "RatedMW": ua.VariantType.Double,
 }
+BATTERY_WRITABLE = ("BatteryMode", "BatterySetpoint_MW")  # only on a plant with a battery (ADR 0016 decision 6)
+BATTERY_TYPES = {
+    "BatteryMode": ua.VariantType.String,
+    "BatterySetpoint_MW": ua.VariantType.Double,
+}
 
 
 def endpoint_url(host, port):
@@ -40,33 +45,43 @@ async def serve(controller, host, port, log=print, started=None):
     namespace = await server.register_namespace(NAMESPACE_URI)
     folder = await server.nodes.objects.add_object(namespace, OBJECT_NAME)
 
+    types = dict(VARIANT_TYPES)
+    writable = list(WRITABLE)
+    if controller.has_battery:  # the battery nodes exist only on a plant that has a battery (ADR 0016 decision 6)
+        types.update(BATTERY_TYPES)
+        writable += BATTERY_WRITABLE
     nodes = {}
     readings = controller.readings()
-    for name, variant_type in VARIANT_TYPES.items():
+    for name, variant_type in types.items():
         node_id = ua.NodeId("%s.%s" % (OBJECT_NAME, name), namespace)
         nodes[name] = await folder.add_variable(node_id, name, readings[name], variant_type)
-        if name in WRITABLE:
+        if name in writable:
             await nodes[name].set_writable()
 
     async def write(name, value):
-        await nodes[name].write_value(ua.Variant(value, VARIANT_TYPES[name]))
+        await nodes[name].write_value(ua.Variant(value, types[name]))
 
     async with server:
         log("OPC UA plant controller at %s (namespace %s, %d nodes)" % (endpoint_url(host, port), NAMESPACE_URI, len(nodes)))
         if started is not None:
             started.set()
-        last = {name: readings[name] for name in WRITABLE}  # what this server last put in the writable nodes
+        last = {name: readings[name] for name in writable}  # what this server last put in the writable nodes
         while True:
-            seen = {name: await nodes[name].read_value() for name in WRITABLE}
+            seen = {name: await nodes[name].read_value() for name in writable}
             if seen != last:  # a client wrote one of them
                 limit_mw, enabled = controller.command(seen["ActivePowerLimit_MW"], seen["LimitEnable"])
                 accepted = {"ActivePowerLimit_MW": limit_mw, "LimitEnable": enabled}
-                for name in WRITABLE:
+                message = "plant controller command: limit %.3f MW, enabled %s" % (limit_mw, enabled)
+                if controller.has_battery:
+                    mode, setpoint_mw = controller.command_battery(seen["BatteryMode"], seen["BatterySetpoint_MW"])
+                    accepted.update({"BatteryMode": mode, "BatterySetpoint_MW": setpoint_mw})
+                    message += "; battery %s %.3f MW" % (mode, setpoint_mw)
+                for name in writable:
                     if seen[name] != accepted[name]:
                         await write(name, accepted[name])  # show what was really accepted (a clamped limit)
                 last = accepted
-                log("plant controller command: limit %.3f MW, enabled %s" % (limit_mw, enabled))
+                log(message)
             for name, value in controller.readings().items():
-                if name not in WRITABLE:
+                if name not in writable:
                     await write(name, value)
             await asyncio.sleep(SYNC_PERIOD_S)
