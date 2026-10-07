@@ -37,6 +37,13 @@ every layer and direct an agent to rebuild the system.
 - **Separate verified from guessed.** Run a spike for risky unknowns, label guesses as guesses, and say plainly when
   an earlier claim turned out wrong.
 - **Questions come numbered, each with a recommended answer.**
+- **Trimmed responses (set 2026-10-06).** Show Wes only what he is meant to learn: domain, architecture, Ignition, and
+  integration. Log testing, REST details, tool quirks, and agent-side lessons silently (the findings file, memory) and do
+  not narrate them. Keep teaching and questioning on the learning topics, and keep the pace up with fewer interruptions.
+- **Wes builds more of the Ignition parts (set the night of 2026-10-06, until he says otherwise on a given day).** He wants
+  to hand-build more in Designer and on gateway pages and have the agent do the quick, repeated, or purely mechanical
+  work. Ask at the start of each session which pieces he wants to build, and for each one prepare the exact steps and a
+  check from the REST side.
 - **Show progress** with short status lines during long work.
 - **Ask before** commits, pushes, downloads, deletions, and security-setting changes. Wes changes gateway security
   settings himself.
@@ -137,6 +144,9 @@ explainable.
 - The Maker "Personal Use Only" notice covers every new Perspective session and has an Agree and Close button. Only a person
   clicks it. The built-in browser pane can read the page behind it but cannot click anything, so a write test on the
   Controller page needs Wes.
+- Agent shell: write any script that contains backslash escapes (such as a newline in a string) with the file tools and run
+  it. Inside a shell heredoc the escapes get mangled into real line breaks and the script breaks or, worse, runs
+  differently. A `cd` in a command also moves the tool's working directory, so use absolute paths.
 - Keep this repo outside OneDrive. Keep every file LF (`.gitattributes`).
 
 ## Public-repo hygiene
