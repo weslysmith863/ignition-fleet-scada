@@ -1,7 +1,7 @@
 # Glossary
 
 Short definitions for the solar terms used in this repo. The explanations, with sources, are in the primer
-([01-solar-plant-primer.md](01-solar-plant-primer.md)). Battery terms are added with part 2, in Phase 2.
+([01-solar-plant-primer.md](01-solar-plant-primer.md)). Battery terms are in the second table, from part 2 ([02-battery-primer.md](02-battery-primer.md)).
 
 | Term | Plain meaning | Unit |
 |---|---|---|
@@ -34,3 +34,22 @@ Short definitions for the solar terms used in this repo. The explanations, with 
 | Setpoint | A target value written to a device, as opposed to a measurement read from it | |
 | SunSpec | A standard that publishes register maps (lists of Modbus registers) for inverters and other devices | |
 | Scale factor | A paired register that tells where the decimal point goes in another register's whole number | |
+
+## Battery terms
+
+| Term | Plain meaning | Unit |
+|---|---|---|
+| BESS | Battery energy storage system: batteries plus the equipment that charges, discharges, and protects them |  |
+| Power capacity | How fast the battery can charge or discharge | kW, MW |
+| Energy capacity | How much energy the battery can hold | kWh, MWh |
+| Duration | Hours the battery can discharge at its power capacity before it is empty: energy capacity divided by power capacity | hours |
+| State of charge (SoC) | How full the battery is; usually estimated, not measured | % |
+| Depth of discharge (DoD) | How much of the capacity has been used | % |
+| State of health (SoH) | The share of battery life remaining | % |
+| BMS | Battery management system: measures voltage, current, and temperature, estimates SoC and SoH, and protects the battery |  |
+| PCS | Power conversion system: the battery's bidirectional inverter; the inverter/charger |  |
+| EMS | Energy management system: decides the charge or discharge power and sends it to the PCS as a command |  |
+| Round-trip efficiency | Share of the energy put in that comes back out over a charge and discharge cycle | % |
+| AC-coupled | The battery has its own inverter and meets the PV on the AC side |  |
+| DC-coupled | The battery shares the PV's DC side and one bidirectional inverter |  |
+| Cycle | One charge and discharge of the battery; the cycle count measures wear |  |

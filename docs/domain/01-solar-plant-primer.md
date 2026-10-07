@@ -1,7 +1,7 @@
 # Solar plant primer, part 1: from sunlight to the grid
 
-Written 2026-10-03. Part 2 (batteries: PCS, BMS, state of charge, dispatch) is written in Phase 2, right before the
-BESS model. Every term is explained before it is named; the glossary ([glossary.md](glossary.md)) has the short form.
+Written 2026-10-03. Part 2, on batteries (PCS, BMS, state of charge), is [02-battery-primer.md](02-battery-primer.md).
+It was written right before the BESS model. Every term is explained before it is named; the glossary ([glossary.md](glossary.md)) has the short form.
 Source tags like [S4] point to the table at the end, which also says how each source was checked.
 
 ## 1. The chain in one picture
