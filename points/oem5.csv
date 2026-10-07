@@ -1,0 +1,7 @@
+site,device,kind,unit_id,host,port,rated_kw
+oem5,Inv1,inverter,1,oem5,15020,750
+oem5,Inv2,inverter,2,oem5,15020,750
+oem5,Inv3,inverter,3,oem5,15020,750
+oem5,Inv4,inverter,4,oem5,15020,750
+oem5,Weather,weather,5,oem5,15020,
+oem5,Meter,meter,6,oem5,15020,

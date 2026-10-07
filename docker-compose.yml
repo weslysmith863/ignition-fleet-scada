@@ -174,6 +174,56 @@ services:
       SIM_SEED: "3"
       TZ: ${TZ:-America/Chicago}
 
+  # OEM-integrated site 2 (ADR 0015): six 1000 kW inverters (6 MWac). Units 1 to 6 are the inverters, 7 the weather station, 8 the meter.
+  oem2:
+    <<: *oem-sim
+    environment:
+      SIM_START: ${SIM_START:-}
+      SIM_INVERTERS: "6"
+      SIM_INVERTER_KW: "1000"
+      SIM_SEED: "4"
+      TZ: ${TZ:-America/Chicago}
+
+  # OEM-integrated site 3 (ADR 0015): two 2000 kW inverters (4 MWac). Units 1 to 2 are the inverters, 3 the weather station, 4 the meter.
+  oem3:
+    <<: *oem-sim
+    environment:
+      SIM_START: ${SIM_START:-}
+      SIM_INVERTERS: "2"
+      SIM_INVERTER_KW: "2000"
+      SIM_SEED: "5"
+      TZ: ${TZ:-America/Chicago}
+
+  # OEM-integrated site 4 (ADR 0015): eight 1250 kW inverters (10 MWac). Units 1 to 8 are the inverters, 9 the weather station, 10 the meter.
+  oem4:
+    <<: *oem-sim
+    environment:
+      SIM_START: ${SIM_START:-}
+      SIM_INVERTERS: "8"
+      SIM_INVERTER_KW: "1250"
+      SIM_SEED: "6"
+      TZ: ${TZ:-America/Chicago}
+
+  # OEM-integrated site 5 (ADR 0015): four 750 kW inverters (3 MWac). Units 1 to 4 are the inverters, 5 the weather station, 6 the meter.
+  oem5:
+    <<: *oem-sim
+    environment:
+      SIM_START: ${SIM_START:-}
+      SIM_INVERTERS: "4"
+      SIM_INVERTER_KW: "750"
+      SIM_SEED: "7"
+      TZ: ${TZ:-America/Chicago}
+
+  # OEM-integrated site 6 (ADR 0015): five 1500 kW inverters (7.5 MWac). Units 1 to 5 are the inverters, 6 the weather station, 7 the meter.
+  oem6:
+    <<: *oem-sim
+    environment:
+      SIM_START: ${SIM_START:-}
+      SIM_INVERTERS: "5"
+      SIM_INVERTER_KW: "1500"
+      SIM_SEED: "8"
+      TZ: ${TZ:-America/Chicago}
+
 # Named volumes keep gateway state (config, projects, license) and database files across container recreation.
 volumes:
   hub-data:

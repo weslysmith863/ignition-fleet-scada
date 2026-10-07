@@ -9,9 +9,9 @@ every layer and direct an agent to rebuild the system.
    (https://app.notion.com/p/3ecc8722b14881edb84cd80d6b4dd28a) and its Teach-back Log subpage. They hold the
    status, decisions, phase plan, and what Wes has and has not yet shown he understands. You are ready when you can
    state the current phase, the next three steps, and the working agreement below in your own words.
-2. Run the cold-start checklist (section 10 of that page) before touching gateways. It confirms the containers (hub,
-   site1, postgres, sim, and once Site 2 is started, site2 and sim2) are healthy; Wes types the compose commands. Start
-   everything with `docker.exe compose up -d --build`, but not before the `SITE2_*` values are in `.env` (see the Site 2 gotcha).
+2. Run the cold-start checklist (section 10 of that page) before touching gateways. It confirms the 13 containers (hub,
+   site1, site2, postgres, sim, sim2, and oem1 to oem6) are healthy; Wes types the compose commands. Start
+   everything with `docker.exe compose up -d --build` (the `SITE2_*` values must be in `.env`; see the Site 2 gotcha).
 3. Check `docs/adr/` (decisions), `docs/layer-cards/` (layer explanations), and `docs/spikes/` (evidence) before
    proposing a design; the question may already be decided.
 

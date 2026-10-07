@@ -17,7 +17,7 @@ simulator, Ignition tags and templates, history in PostgreSQL, and browser scree
 |---|---|---|
 | 0 | Spikes and skeleton: hub reads a tag from a site gateway | Done |
 | 1 | One site end to end | **Done** |
-| 2 | Fleet and templating: 8 sites from one points list, a battery model | Planned |
+| 2 | Fleet and templating: 8 sites from one points list, a battery model | **In progress**: eight sites live (two site gateways, six OEM-integrated), fleet screen; battery model next |
 | 3 | Operations layer: alarms, downtime, Event Streams, fault scenarios | Planned |
 | 4 | Admin tooling, CI, commissioning docs, showcase | Planned |
 
@@ -90,7 +90,7 @@ These are deliberate for a local, single-machine project, and each is written do
   trackers, no reactive power, no wind.
 - **Manual steps**: the license token, the `API_RW` security level, the write permission, and the API key. Everything else was
   rebuilt from an empty gateway by the tools (finding 51).
-- **One site**. The fleet, the hub's fleet views, alarms, and the battery are later phases.
+- **Alarms and the battery are later**: the battery model is the rest of Phase 2, and alarms, downtime, and fault scenarios are Phase 3.
 
 ## Repo layout
 
