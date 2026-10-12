@@ -5,10 +5,15 @@
     "frequency": 0
   },
   "params": {
-    "inverter": "Inv1"
+    "inverter": "Inv1",
+    "provider": "default"
   },
   "propConfig": {
     "params.inverter": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.provider": {
       "paramDirection": "input",
       "persistent": true
     },
@@ -17,8 +22,9 @@
         "type": "tag",
         "config": {
           "mode": "indirect",
-          "tagPath": "[default]Inverters/{inverter}/ACPower_kW",
+          "tagPath": "[{provider}]Inverters/{inverter}/ACPower_kW",
           "references": {
+            "provider": "{view.params.provider}",
             "inverter": "{view.params.inverter}"
           }
         }
@@ -29,8 +35,9 @@
         "type": "tag",
         "config": {
           "mode": "indirect",
-          "tagPath": "[default]Inverters/{inverter}/State",
+          "tagPath": "[{provider}]Inverters/{inverter}/State",
           "references": {
+            "provider": "{view.params.provider}",
             "inverter": "{view.params.inverter}"
           }
         }
@@ -41,8 +48,9 @@
         "type": "tag",
         "config": {
           "mode": "indirect",
-          "tagPath": "[default]Inverters/{inverter}/Frequency_Hz",
+          "tagPath": "[{provider}]Inverters/{inverter}/Frequency_Hz",
           "references": {
+            "provider": "{view.params.provider}",
             "inverter": "{view.params.inverter}"
           }
         }

@@ -1,77 +1,244 @@
 {
-  "custom": {
-    "sites": [],
-    "totals": {
-      "output": 0,
-      "rated": 0,
-      "count": 0
-    }
-  },
+  "custom": {},
   "params": {},
   "propConfig": {
     "custom.sites": {
       "binding": {
-        "type": "expr",
         "config": {
           "expression": "1"
         },
         "transforms": [
           {
-            "type": "script",
-            "code": "\tresults = system.tag.browse(\"\").getResults()\n\tnames = [str(r[\"name\"]) for r in results]\n\treturn sorted([n for n in names if n not in (\"System\", \"default\")], key=lambda n: (len(n), n))"
+            "code": "\tresults = system.tag.browse(\"\").getResults()\n\tnames = [str(r[\"name\"]) for r in results]\n\treturn sorted([n for n in names if n not in (\"System\", \"default\")], key=lambda n: (len(n), n))",
+            "type": "script"
           }
-        ]
+        ],
+        "type": "expr"
       }
     },
     "custom.totals": {
       "binding": {
-        "type": "expr",
         "config": {
           "expression": "now(5000)"
         },
         "transforms": [
           {
-            "type": "script",
-            "code": "\tresults = system.tag.browse(\"\").getResults()\n\tsites = [str(r[\"name\"]) for r in results if str(r[\"name\"]) not in (\"System\", \"default\")]\n\tpaths = []\n\tfor s in sites:\n\t\tpaths.append(\"[%s]Meter/POI_MW\" % s)\n\t\tpaths.append(\"[%s]Site/RatedMW\" % s)\n\tvalues = system.tag.readBlocking(paths) if paths else []\n\toutput = sum([values[i].value for i in range(0, len(values), 2) if values[i].quality.isGood()])\n\trated = sum([values[i].value for i in range(1, len(values), 2) if values[i].quality.isGood()])\n\treturn {\"output\": output, \"rated\": rated, \"count\": len(sites)}"
+            "code": "\tresults = system.tag.browse(\"\").getResults()\n\tsites = [str(r[\"name\"]) for r in results if str(r[\"name\"]) not in (\"System\", \"default\")]\n\tpaths = []\n\tfor s in sites:\n\t\tpaths.append(\"[%s]Meter/POI_MW\" % s)\n\t\tpaths.append(\"[%s]Site/RatedMW\" % s)\n\tvalues = system.tag.readBlocking(paths) if paths else []\n\toutput = sum([values[i].value for i in range(0, len(values), 2) if values[i].quality.isGood()])\n\trated = sum([values[i].value for i in range(1, len(values), 2) if values[i].quality.isGood()])\n\treporting = len([i for i in range(0, len(values), 2) if values[i].quality.isGood()])\n\treturn {\"output\": output, \"rated\": rated, \"count\": len(sites), \"reporting\": reporting}",
+            "type": "script"
           }
-        ]
+        ],
+        "type": "expr"
       }
     }
   },
   "props": {
     "defaultSize": {
-      "width": 1100,
-      "height": 700
+      "height": 700,
+      "width": 1100
     }
   },
   "root": {
-    "type": "ia.container.flex",
-    "meta": {
-      "name": "root"
-    },
-    "props": {
-      "direction": "column",
-      "style": {
-        "backgroundColor": "#f3f5f7"
-      }
-    },
     "children": [
       {
-        "type": "ia.display.view",
         "meta": {
           "name": "Header"
         },
         "position": {
-          "basis": "auto",
           "shrink": 0
         },
         "props": {
           "path": "Header",
           "useDefaultViewHeight": true
-        }
+        },
+        "type": "ia.display.view"
       },
       {
-        "type": "ia.container.flex",
+        "children": [
+          {
+            "meta": {
+              "name": "Title"
+            },
+            "props": {
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "20px",
+                "fontWeight": "600"
+              },
+              "text": "Fleet at a glance"
+            },
+            "type": "ia.display.label"
+          },
+          {
+            "children": [
+              {
+                "meta": {
+                  "name": "FleetOutput"
+                },
+                "position": {
+                  "basis": "0",
+                  "grow": 1
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "config": {
+                        "expression": "numberFormat({view.custom.totals.output}, '0.00') + \" MW\""
+                      },
+                      "type": "expr"
+                    }
+                  }
+                },
+                "props": {
+                  "params": {
+                    "accent": "#1b2733",
+                    "title": "Fleet output"
+                  },
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true
+                },
+                "type": "ia.display.view"
+              },
+              {
+                "meta": {
+                  "name": "FleetRating"
+                },
+                "position": {
+                  "basis": "0",
+                  "grow": 1
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "config": {
+                        "expression": "numberFormat({view.custom.totals.rated}, '0.0') + \" MW\""
+                      },
+                      "type": "expr"
+                    }
+                  }
+                },
+                "props": {
+                  "params": {
+                    "accent": "#1b2733",
+                    "title": "Fleet rating"
+                  },
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true
+                },
+                "type": "ia.display.view"
+              },
+              {
+                "meta": {
+                  "name": "SiteCount"
+                },
+                "position": {
+                  "basis": "0",
+                  "grow": 1
+                },
+                "propConfig": {
+                  "props.params.accent": {
+                    "binding": {
+                      "config": {
+                        "expression": "if({view.custom.totals.reporting} < {view.custom.totals.count}, '#c77700', '#1b2733')"
+                      },
+                      "type": "expr"
+                    }
+                  },
+                  "props.params.text": {
+                    "binding": {
+                      "config": {
+                        "expression": "toStr({view.custom.totals.reporting}) + \" of \" + toStr({view.custom.totals.count}) + \" reporting\""
+                      },
+                      "type": "expr"
+                    }
+                  }
+                },
+                "props": {
+                  "params": {
+                    "title": "Sites"
+                  },
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true
+                },
+                "type": "ia.display.view"
+              }
+            ],
+            "meta": {
+              "name": "Totals"
+            },
+            "position": {
+              "shrink": 0
+            },
+            "props": {
+              "style": {
+                "gap": "16px"
+              }
+            },
+            "type": "ia.container.flex"
+          },
+          {
+            "meta": {
+              "name": "SitesTitle"
+            },
+            "props": {
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "16px",
+                "fontWeight": "600"
+              },
+              "text": "Sites"
+            },
+            "type": "ia.display.label"
+          },
+          {
+            "meta": {
+              "name": "SiteCards"
+            },
+            "position": {
+              "shrink": 0
+            },
+            "propConfig": {
+              "props.instances": {
+                "binding": {
+                  "config": {
+                    "path": "view.custom.sites"
+                  },
+                  "transforms": [
+                    {
+                      "code": "\treturn [{\"site\": s} for s in value]",
+                      "type": "script"
+                    }
+                  ],
+                  "type": "property"
+                }
+              }
+            },
+            "props": {
+              "elementPosition": {
+                "basis": "320px"
+              },
+              "path": "SiteCard",
+              "style": {
+                "gap": "16px"
+              },
+              "useDefaultViewWidth": false,
+              "wrap": "wrap"
+            },
+            "type": "ia.display.flex-repeater"
+          },
+          {
+            "meta": {
+              "name": "Footnote"
+            },
+            "props": {
+              "style": {
+                "color": "#5f6b76",
+                "fontSize": "12px"
+              },
+              "text": "Every site is read through a tag provider on this gateway: a remote one for a site gateway, a local one for an OEM-integrated site. Simulated data. Personal learning project on Ignition Maker Edition."
+            },
+            "type": "ia.display.label"
+          }
+        ],
         "meta": {
           "name": "Content"
         },
@@ -81,210 +248,22 @@
         "props": {
           "direction": "column",
           "style": {
-            "padding": "20px",
-            "gap": "16px"
+            "gap": "16px",
+            "padding": "20px"
           }
         },
-        "children": [
-          {
-            "type": "ia.display.label",
-            "meta": {
-              "name": "Title"
-            },
-            "position": {
-              "basis": "auto"
-            },
-            "props": {
-              "text": "Fleet at a glance",
-              "style": {
-                "color": "#1b2733",
-                "fontSize": "20px",
-                "fontWeight": "600"
-              }
-            }
-          },
-          {
-            "type": "ia.container.flex",
-            "meta": {
-              "name": "Totals"
-            },
-            "position": {
-              "basis": "auto",
-              "shrink": 0
-            },
-            "props": {
-              "direction": "row",
-              "style": {
-                "gap": "16px"
-              }
-            },
-            "children": [
-              {
-                "type": "ia.display.view",
-                "meta": {
-                  "name": "FleetOutput"
-                },
-                "position": {
-                  "grow": 1,
-                  "basis": "0"
-                },
-                "props": {
-                  "path": "Kpi",
-                  "useDefaultViewHeight": true,
-                  "params": {
-                    "title": "Fleet output",
-                    "text": "",
-                    "accent": "#1b2733"
-                  }
-                },
-                "propConfig": {
-                  "props.params.text": {
-                    "binding": {
-                      "type": "expr",
-                      "config": {
-                        "expression": "numberFormat({view.custom.totals.output}, '0.00') + \" MW\""
-                      }
-                    }
-                  }
-                }
-              },
-              {
-                "type": "ia.display.view",
-                "meta": {
-                  "name": "FleetRating"
-                },
-                "position": {
-                  "grow": 1,
-                  "basis": "0"
-                },
-                "props": {
-                  "path": "Kpi",
-                  "useDefaultViewHeight": true,
-                  "params": {
-                    "title": "Fleet rating",
-                    "text": "",
-                    "accent": "#1b2733"
-                  }
-                },
-                "propConfig": {
-                  "props.params.text": {
-                    "binding": {
-                      "type": "expr",
-                      "config": {
-                        "expression": "numberFormat({view.custom.totals.rated}, '0.0') + \" MW\""
-                      }
-                    }
-                  }
-                }
-              },
-              {
-                "type": "ia.display.view",
-                "meta": {
-                  "name": "SiteCount"
-                },
-                "position": {
-                  "grow": 1,
-                  "basis": "0"
-                },
-                "props": {
-                  "path": "Kpi",
-                  "useDefaultViewHeight": true,
-                  "params": {
-                    "title": "Sites",
-                    "text": "",
-                    "accent": "#1b2733"
-                  }
-                },
-                "propConfig": {
-                  "props.params.text": {
-                    "binding": {
-                      "type": "expr",
-                      "config": {
-                        "expression": "toStr({view.custom.totals.count})"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "type": "ia.display.label",
-            "meta": {
-              "name": "SitesTitle"
-            },
-            "position": {
-              "basis": "auto"
-            },
-            "props": {
-              "text": "Sites",
-              "style": {
-                "color": "#1b2733",
-                "fontSize": "16px",
-                "fontWeight": "600"
-              }
-            }
-          },
-          {
-            "type": "ia.display.flex-repeater",
-            "meta": {
-              "name": "SiteCards"
-            },
-            "position": {
-              "basis": "auto",
-              "shrink": 0
-            },
-            "props": {
-              "path": "SiteCard",
-              "direction": "row",
-              "wrap": "wrap",
-              "useDefaultViewWidth": false,
-              "useDefaultViewHeight": true,
-              "elementPosition": {
-                "grow": 1,
-                "shrink": 1,
-                "basis": "320px"
-              },
-              "style": {
-                "gap": "16px"
-              },
-              "instances": []
-            },
-            "propConfig": {
-              "props.instances": {
-                "binding": {
-                  "type": "property",
-                  "config": {
-                    "path": "view.custom.sites"
-                  },
-                  "transforms": [
-                    {
-                      "type": "script",
-                      "code": "\treturn [{\"site\": s} for s in value]"
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          {
-            "type": "ia.display.label",
-            "meta": {
-              "name": "Footnote"
-            },
-            "position": {
-              "basis": "auto"
-            },
-            "props": {
-              "text": "Every site is read through a tag provider on this gateway: a remote one for a site gateway, a local one for an OEM-integrated site. Simulated data. Personal learning project on Ignition Maker Edition.",
-              "style": {
-                "color": "#5f6b76",
-                "fontSize": "12px"
-              }
-            }
-          }
-        ]
+        "type": "ia.container.flex"
       }
-    ]
+    ],
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "style": {
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    "type": "ia.container.flex"
   }
 }

@@ -1,6 +1,24 @@
 {
-  "custom": {},
+  "custom": {
+    "hasBattery": false
+  },
   "params": {},
+  "propConfig": {
+    "custom.hasBattery": {
+      "binding": {
+        "type": "expr",
+        "config": {
+          "expression": "1"
+        },
+        "transforms": [
+          {
+            "type": "script",
+            "code": "\tresults = system.tag.browse(\"[default]\").getResults()\n\treturn len([r for r in results if str(r[\"name\"]) == \"Battery\"]) > 0"
+          }
+        ]
+      }
+    }
+  },
   "props": {
     "defaultSize": {
       "width": 1100,
@@ -323,6 +341,192 @@
                         "expression": "switch({[default]PlantController/Status}, 'Curtailed', '#c77700', 'Standby', '#6b7782', '#2e7d32')"
                       }
                     }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "ia.container.flex",
+            "meta": {
+              "name": "BatteryOrder"
+            },
+            "position": {
+              "grow": 1,
+              "basis": "0"
+            },
+            "propConfig": {
+              "meta.visible": {
+                "binding": {
+                  "type": "property",
+                  "config": {
+                    "path": "view.custom.hasBattery"
+                  }
+                }
+              }
+            },
+            "props": {
+              "direction": "column",
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #d7dde3",
+                "borderRadius": "8px",
+                "padding": "16px 20px",
+                "gap": "14px"
+              }
+            },
+            "children": [
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "BatteryTitle"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Battery order",
+                  "style": {
+                    "color": "#1b2733",
+                    "fontSize": "16px",
+                    "fontWeight": "600"
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "BatteryHelp"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Choose a mode and the size of the power in MW (never negative). This is an order to the plant controller: the battery's real response comes back separately, below. At midday with the plant at its rating, a discharge delivers 0 because export is capped.",
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "13px"
+                  }
+                }
+              },
+              {
+                "type": "ia.input.dropdown",
+                "meta": {
+                  "name": "Mode"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "options": [
+                    {
+                      "label": "Idle",
+                      "value": "Idle"
+                    },
+                    {
+                      "label": "Charge",
+                      "value": "Charge"
+                    },
+                    {
+                      "label": "Discharge",
+                      "value": "Discharge"
+                    }
+                  ],
+                  "clearable": false
+                },
+                "propConfig": {
+                  "props.value": {
+                    "binding": {
+                      "type": "tag",
+                      "config": {
+                        "mode": "direct",
+                        "tagPath": "[default]Battery/Mode",
+                        "bidirectional": true
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.input.numeric-entry-field",
+                "meta": {
+                  "name": "SetpointMW"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "format": "0.00",
+                  "inputBounds": {
+                    "minimum": 0
+                  },
+                  "spinner": {
+                    "enabled": true,
+                    "increment": 0.5
+                  },
+                  "style": {
+                    "fontSize": "20px"
+                  }
+                },
+                "propConfig": {
+                  "props.value": {
+                    "binding": {
+                      "type": "tag",
+                      "config": {
+                        "mode": "direct",
+                        "tagPath": "[default]Battery/Setpoint_MW",
+                        "bidirectional": true
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "BatteryResult"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "",
+                  "style": {
+                    "color": "#1b2733",
+                    "fontSize": "14px",
+                    "fontWeight": "600"
+                  }
+                },
+                "propConfig": {
+                  "props.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "\"Result: \" + {[default]Battery/ChargeStatus} + \", \" + numberFormat({[default]Battery/Power_kW}, '#,##0') + \" kW (negative means charging), charge \" + numberFormat({[default]Battery/SoC_pct}, '0.0') + \" %\""
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "BatteryNote"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Development only: this page has no login and writes straight to the simulator's OPC UA server (ADR 0012, ADR 0016).",
+                  "style": {
+                    "color": "#8a5a00",
+                    "fontSize": "12px"
                   }
                 }
               }

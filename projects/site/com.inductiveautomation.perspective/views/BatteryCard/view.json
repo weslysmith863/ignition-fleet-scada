@@ -1,0 +1,169 @@
+{
+  "custom": {},
+  "params": {
+    "battery": "Battery"
+  },
+  "propConfig": {
+    "custom.power": {
+      "binding": {
+        "config": {
+          "fallbackDelay": 2.5,
+          "mode": "indirect",
+          "references": {
+            "battery": "{view.params.battery}"
+          },
+          "tagPath": "[default]{battery}/Power_kW"
+        },
+        "type": "tag"
+      }
+    },
+    "custom.soc": {
+      "binding": {
+        "config": {
+          "fallbackDelay": 2.5,
+          "mode": "indirect",
+          "references": {
+            "battery": "{view.params.battery}"
+          },
+          "tagPath": "[default]{battery}/SoC_pct"
+        },
+        "type": "tag"
+      }
+    },
+    "custom.state": {
+      "binding": {
+        "config": {
+          "fallbackDelay": 2.5,
+          "mode": "indirect",
+          "references": {
+            "battery": "{view.params.battery}"
+          },
+          "tagPath": "[default]{battery}/State"
+        },
+        "type": "tag"
+      }
+    },
+    "params.battery": {
+      "paramDirection": "input",
+      "persistent": true
+    }
+  },
+  "props": {
+    "defaultSize": {
+      "height": 150,
+      "width": 260
+    }
+  },
+  "root": {
+    "children": [
+      {
+        "meta": {
+          "name": "Name"
+        },
+        "props": {
+          "style": {
+            "color": "#5f6b76",
+            "fontSize": "12px",
+            "letterSpacing": "0.04em",
+            "textTransform": "uppercase"
+          },
+          "text": "Battery"
+        },
+        "type": "ia.display.label"
+      },
+      {
+        "meta": {
+          "name": "Charge"
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "config": {
+                "expression": "numberFormat({view.custom.soc}, '0.0') + \" %\""
+              },
+              "type": "expr"
+            }
+          }
+        },
+        "props": {
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "28px",
+            "fontWeight": "600"
+          }
+        },
+        "type": "ia.display.label"
+      },
+      {
+        "meta": {
+          "name": "Power"
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "config": {
+                "expression": "if({view.custom.power} > 0.5,\n   \"Discharging \" + numberFormat({view.custom.power} / 1000, '0.0') + \" MW\",\n   if({view.custom.power} < -0.5,\n      \"Charging \" + numberFormat(abs({view.custom.power}) / 1000, '0.0') + \" MW\",\n      \"Idle\"))"
+              },
+              "type": "expr"
+            }
+          }
+        },
+        "props": {
+          "style": {
+            "color": "#5f6b76",
+            "fontSize": "13px"
+          }
+        },
+        "type": "ia.display.label"
+      },
+      {
+        "meta": {
+          "name": "State"
+        },
+        "propConfig": {
+          "props.style.backgroundColor": {
+            "binding": {
+              "config": {
+                "expression": "switch({view.custom.state}, 'Connected', '#2e7d32', 'SOC protection', '#c77700', 'Fault', '#b3261e', '#6b7782')"
+              },
+              "type": "expr"
+            }
+          },
+          "props.text": {
+            "binding": {
+              "config": {
+                "expression": "{view.custom.state}"
+              },
+              "type": "expr"
+            }
+          }
+        },
+        "props": {
+          "style": {
+            "borderRadius": "10px",
+            "color": "#ffffff",
+            "fontSize": "12px",
+            "fontWeight": "600",
+            "padding": "2px 10px",
+            "width": "fit-content"
+          }
+        },
+        "type": "ia.display.label"
+      }
+    ],
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "justify": "space-between",
+      "style": {
+        "backgroundColor": "#ffffff",
+        "border": "1px solid #d7dde3",
+        "borderRadius": "8px",
+        "padding": "12px 16px"
+      }
+    },
+    "type": "ia.container.flex"
+  }
+}

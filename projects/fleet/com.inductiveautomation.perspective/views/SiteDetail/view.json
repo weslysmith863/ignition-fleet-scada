@@ -1,0 +1,484 @@
+{
+  "custom": {
+    "output": 0,
+    "rated": 0,
+    "sun": 0,
+    "hasBattery": false,
+    "batterySoc": 0,
+    "batteryKw": 0,
+    "reporting": true
+  },
+  "params": {
+    "site": "site1"
+  },
+  "propConfig": {
+    "params.site": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "custom.output": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]Meter/POI_MW",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    },
+    "custom.rated": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]Site/RatedMW",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    },
+    "custom.sun": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]Weather/POA_Wm2",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    },
+    "custom.reporting": {
+      "binding": {
+        "type": "expr",
+        "config": {
+          "expression": "{view.params.site} + \"|\" + toStr(now(5000))"
+        },
+        "transforms": [
+          {
+            "type": "script",
+            "code": "\tsite = value.split(\"|\")[0]\n\treturn system.tag.readBlocking([\"[%s]Meter/POI_MW\" % site])[0].quality.isGood()"
+          }
+        ]
+      }
+    },
+    "custom.hasBattery": {
+      "binding": {
+        "type": "expr",
+        "config": {
+          "expression": "{view.params.site}"
+        },
+        "transforms": [
+          {
+            "type": "script",
+            "code": "\tresults = system.tag.browse(\"[%s]\" % value).getResults()\n\treturn len([r for r in results if str(r[\"name\"]) == \"Battery\"]) > 0"
+          }
+        ]
+      }
+    },
+    "custom.batterySoc": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]Battery/SoC_pct",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    },
+    "custom.batteryKw": {
+      "binding": {
+        "type": "tag",
+        "config": {
+          "mode": "indirect",
+          "tagPath": "[{site}]Battery/Power_kW",
+          "references": {
+            "site": "{view.params.site}"
+          }
+        }
+      }
+    }
+  },
+  "props": {
+    "defaultSize": {
+      "width": 1100,
+      "height": 700
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "style": {
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.view",
+        "meta": {
+          "name": "Header"
+        },
+        "position": {
+          "basis": "auto",
+          "shrink": 0
+        },
+        "props": {
+          "path": "Header",
+          "useDefaultViewHeight": true
+        }
+      },
+      {
+        "type": "ia.container.flex",
+        "meta": {
+          "name": "Content"
+        },
+        "position": {
+          "grow": 1
+        },
+        "props": {
+          "direction": "column",
+          "style": {
+            "padding": "20px",
+            "gap": "16px"
+          }
+        },
+        "children": [
+          {
+            "type": "ia.container.flex",
+            "meta": {
+              "name": "TitleRow"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "direction": "row",
+              "alignItems": "baseline",
+              "style": {
+                "gap": "20px"
+              }
+            },
+            "children": [
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "Back"
+                },
+                "position": {
+                  "basis": "auto"
+                },
+                "props": {
+                  "text": "← Fleet overview",
+                  "style": {
+                    "color": "#2563a8",
+                    "fontSize": "14px",
+                    "cursor": "pointer"
+                  }
+                },
+                "events": {
+                  "dom": {
+                    "onClick": {
+                      "type": "script",
+                      "scope": "G",
+                      "config": {
+                        "script": "\tsystem.perspective.navigate(page=\"/\")"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "Title"
+                },
+                "position": {
+                  "basis": "auto"
+                },
+                "props": {
+                  "text": "",
+                  "style": {
+                    "color": "#1b2733",
+                    "fontSize": "20px",
+                    "fontWeight": "600"
+                  }
+                },
+                "propConfig": {
+                  "props.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "{view.params.site} + \"  ·  site detail\""
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "NoDataBanner"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "No data from this site: its meter has no good reading, so the values below are the last ones each tag held and may be out of date.",
+              "style": {
+                "backgroundColor": "#fdecea",
+                "border": "1px solid #b3261e",
+                "borderRadius": "6px",
+                "color": "#b3261e",
+                "fontSize": "13px",
+                "fontWeight": "600",
+                "padding": "8px 12px"
+              }
+            },
+            "propConfig": {
+              "meta.visible": {
+                "binding": {
+                  "type": "expr",
+                  "config": {
+                    "expression": "!{view.custom.reporting}"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "ia.container.flex",
+            "meta": {
+              "name": "Totals"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "direction": "row",
+              "style": {
+                "gap": "16px"
+              }
+            },
+            "children": [
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "Output"
+                },
+                "position": {
+                  "grow": 1,
+                  "basis": "0"
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Output at the meter",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "if({view.custom.reporting}, numberFormat({view.custom.output}, '0.00') + \" MW\", \"No data\")"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "Rating"
+                },
+                "position": {
+                  "grow": 1,
+                  "basis": "0"
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Plant rating",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "numberFormat({view.custom.rated}, '0.0') + \" MW\""
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "Sunlight"
+                },
+                "position": {
+                  "grow": 1,
+                  "basis": "0"
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Sunlight on the panels",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "props.params.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "numberFormat({view.custom.sun}, '#,##0') + \" W/m²\""
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.display.view",
+                "meta": {
+                  "name": "Battery"
+                },
+                "position": {
+                  "grow": 1,
+                  "basis": "0"
+                },
+                "props": {
+                  "path": "Kpi",
+                  "useDefaultViewHeight": true,
+                  "params": {
+                    "title": "Battery",
+                    "text": "",
+                    "accent": "#1b2733"
+                  }
+                },
+                "propConfig": {
+                  "meta.visible": {
+                    "binding": {
+                      "type": "property",
+                      "config": {
+                        "path": "view.custom.hasBattery"
+                      }
+                    }
+                  },
+                  "props.params.text": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "numberFormat({view.custom.batterySoc}, '0') + \"%  ·  \" + if({view.custom.batteryKw} > 0.5, \"discharging \" + numberFormat({view.custom.batteryKw} / 1000, '0.0') + \" MW\", if({view.custom.batteryKw} < -0.5, \"charging \" + numberFormat(abs({view.custom.batteryKw}) / 1000, '0.0') + \" MW\", \"idle\"))"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "InvertersTitle"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Inverters",
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "16px",
+                "fontWeight": "600"
+              }
+            }
+          },
+          {
+            "type": "ia.display.flex-repeater",
+            "meta": {
+              "name": "Inverters"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "path": "InverterCard",
+              "direction": "row",
+              "wrap": "wrap",
+              "useDefaultViewWidth": false,
+              "useDefaultViewHeight": true,
+              "elementPosition": {
+                "grow": 1,
+                "shrink": 1,
+                "basis": "220px"
+              },
+              "style": {
+                "gap": "16px"
+              },
+              "instances": []
+            },
+            "propConfig": {
+              "props.instances": {
+                "binding": {
+                  "type": "property",
+                  "config": {
+                    "path": "view.params.site"
+                  },
+                  "transforms": [
+                    {
+                      "type": "script",
+                      "code": "\tresults = system.tag.browse(\"[%s]Inverters\" % value).getResults()\n\tnames = sorted([str(r[\"name\"]) for r in results], key=lambda n: (len(n), n))\n\treturn [{\"inverter\": n, \"provider\": value} for n in names]"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Footnote"
+            },
+            "position": {
+              "basis": "auto"
+            },
+            "props": {
+              "text": "Read through this site's tag provider on the hub. The same page serves every site. Simulated data. Personal learning project on Ignition Maker Edition.",
+              "style": {
+                "color": "#5f6b76",
+                "fontSize": "12px"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

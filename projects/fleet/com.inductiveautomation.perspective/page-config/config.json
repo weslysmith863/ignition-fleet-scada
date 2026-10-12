@@ -2,6 +2,9 @@
   "pages": {
     "/": {
       "viewPath": "FleetOverview"
+    },
+    "/site/:site": {
+      "viewPath": "SiteDetail"
     }
   },
   "sharedDocks": {
