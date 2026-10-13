@@ -1,5 +1,7 @@
 {
-  "custom": {},
+  "custom": {
+    "active": false
+  },
   "params": {
     "inverter": 1
   },
@@ -7,12 +9,20 @@
     "params.inverter": {
       "paramDirection": "input",
       "persistent": true
+    },
+    "custom.active": {
+      "binding": {
+        "type": "expr",
+        "config": {
+          "expression": "{[default]PlantController/TripInverter} = {view.params.inverter}"
+        }
+      }
     }
   },
   "props": {
     "defaultSize": {
-      "width": 150,
-      "height": 44
+      "width": 160,
+      "height": 56
     }
   },
   "root": {
@@ -21,7 +31,10 @@
       "name": "root"
     },
     "props": {
-      "direction": "column"
+      "direction": "column",
+      "style": {
+        "padding": "2px 2px 9px 2px"
+      }
     },
     "children": [
       {
@@ -35,10 +48,15 @@
         "props": {
           "text": "Trip inverter",
           "style": {
-            "backgroundColor": "#b3261e",
+            "backgroundColor": "#c62828",
+            "border": "1px solid #7a1914",
+            "borderRadius": "8px",
+            "boxShadow": "0 4px 0 #7a1914, 0 6px 10px rgba(0,0,0,0.25)",
             "color": "#ffffff",
+            "cursor": "pointer",
             "fontWeight": "600",
-            "borderRadius": "6px"
+            "transform": "translateY(0px)",
+            "transition": "all 0.1s ease"
           }
         },
         "propConfig": {
@@ -46,7 +64,31 @@
             "binding": {
               "type": "expr",
               "config": {
-                "expression": "\"Trip inverter \" + toStr({view.params.inverter})"
+                "expression": "if({view.custom.active}, \"Inverter \" + toStr({view.params.inverter}) + \" TRIPPED\", \"Trip inverter \" + toStr({view.params.inverter}))"
+              }
+            }
+          },
+          "props.style.backgroundColor": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "if({view.custom.active}, \"#8c1d18\", \"#c62828\")"
+              }
+            }
+          },
+          "props.style.boxShadow": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "if({view.custom.active}, \"inset 0 3px 8px rgba(0,0,0,0.5)\", \"0 4px 0 #7a1914, 0 6px 10px rgba(0,0,0,0.25)\")"
+              }
+            }
+          },
+          "props.style.transform": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "if({view.custom.active}, \"translateY(4px)\", \"translateY(0px)\")"
               }
             }
           }
