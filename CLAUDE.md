@@ -30,8 +30,10 @@ every layer and direct an agent to rebuild the system.
   (DosingControl) and would rather watch what the API can do, so the agent builds the views as project files in the
   repo and deploys them through the REST API. Wes reviews them in a browser and is still quizzed on how a view gets its
   data, how history reaches a chart, and how the project is deployed.
-- **Predict, then look.** Before showing live values or output, ask Wes to predict them in his own words; it surfaces
-  misunderstandings early.
+- **No predictions (decided by Wes on 2026-10-13).** The old "predict, then look" step is dropped: it felt bad and did not
+  help Wes learn. Show the result and say what it means in plain words. Understanding is checked by the gate quiz and by the
+  questions Wes asks. Wes has a SQL beginner's background (he has mostly relied on AI for SQL), so explain any SQL from the
+  top, show the SQL itself in the message, and write the SQL for him unless he asks to learn it.
 - **Put settings that matter in the prose,** not only in a table column. A Data Type column was missed once and silently
   broke four tags.
 - **Separate verified from guessed.** Run a spike for risky unknowns, label guesses as guesses, and say plainly when

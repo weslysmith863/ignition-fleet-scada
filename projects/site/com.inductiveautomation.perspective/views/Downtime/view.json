@@ -1,0 +1,320 @@
+{
+  "custom": {},
+  "params": {},
+  "props": {
+    "defaultSize": {
+      "width": 1100,
+      "height": 700
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "style": {
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.view",
+        "meta": {
+          "name": "Header"
+        },
+        "position": {
+          "basis": "auto",
+          "shrink": 0
+        },
+        "props": {
+          "path": "Header",
+          "useDefaultViewHeight": true
+        }
+      },
+      {
+        "type": "ia.container.flex",
+        "meta": {
+          "name": "Content"
+        },
+        "position": {
+          "grow": 1
+        },
+        "props": {
+          "direction": "column",
+          "style": {
+            "padding": "20px",
+            "gap": "12px",
+            "overflow": "auto"
+          }
+        },
+        "children": [
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Title"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Downtime",
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "20px",
+                "fontWeight": "600"
+              }
+            }
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Help"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Each row is one inverter fault, from the moment its alarm went Active until it Cleared. Choose a reason for each one: the reason decides whether that time counts against availability. A choice is saved as soon as you make it. This page lists this site's faults only, newest first (the latest 40).",
+              "style": {
+                "color": "#5f6b76",
+                "fontSize": "13px"
+              }
+            }
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Summary"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "",
+              "style": {
+                "backgroundColor": "#eef1f4",
+                "borderRadius": "6px",
+                "color": "#1b2733",
+                "fontSize": "15px",
+                "fontWeight": "600",
+                "padding": "10px 14px"
+              }
+            },
+            "propConfig": {
+              "props.text": {
+                "binding": {
+                  "type": "expr",
+                  "config": {
+                    "expression": "now(10000)"
+                  },
+                  "transforms": [
+                    {
+                      "type": "script",
+                      "code": "\tsite = system.tag.readBlocking([\"[System]Gateway/SystemName\"])[0].value\n\tr = system.db.runPrepQuery(\"SELECT count(*) AS total, count(*) FILTER (WHERE ongoing) AS ongoing, count(*) FILTER (WHERE reason_code = 'UNASSIGNED') AS unassigned FROM downtime_intervals WHERE site = ?\", [site], \"fleetdb\")\n\tif r[0][\"total\"] == 0:\n\t\treturn \"No downtime recorded yet on \" + site + \".\"\n\treturn \"%d downtime events on %s: %d still going on, %d waiting for a reason.\" % (r[0][\"total\"], site, r[0][\"ongoing\"], r[0][\"unassigned\"])"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "ia.container.flex",
+            "meta": {
+              "name": "Columns"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "direction": "row",
+              "alignItems": "center",
+              "style": {
+                "gap": "8px",
+                "padding": "0 13px"
+              }
+            },
+            "children": [
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "EquipmentTitle"
+                },
+                "position": {
+                  "basis": "110px",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Equipment",
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "textTransform": "uppercase",
+                    "letterSpacing": "0.04em"
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "StartedTitle"
+                },
+                "position": {
+                  "basis": "170px",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Fault started",
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "textTransform": "uppercase",
+                    "letterSpacing": "0.04em"
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "DurationTitle"
+                },
+                "position": {
+                  "basis": "110px",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Duration",
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "textTransform": "uppercase",
+                    "letterSpacing": "0.04em"
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "AcknowledgedTitle"
+                },
+                "position": {
+                  "basis": "130px",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Acknowledged",
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "textTransform": "uppercase",
+                    "letterSpacing": "0.04em"
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "ReasonTitle"
+                },
+                "position": {
+                  "basis": "250px",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Reason",
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "textTransform": "uppercase",
+                    "letterSpacing": "0.04em"
+                  }
+                }
+              },
+              {
+                "type": "ia.display.label",
+                "meta": {
+                  "name": "AvailabilityTitle"
+                },
+                "position": {
+                  "grow": 1
+                },
+                "props": {
+                  "text": "Availability",
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "textTransform": "uppercase",
+                    "letterSpacing": "0.04em"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "ia.display.flex-repeater",
+            "meta": {
+              "name": "Rows"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "path": "DowntimeRow",
+              "direction": "column",
+              "useDefaultViewWidth": false,
+              "useDefaultViewHeight": true,
+              "elementPosition": {
+                "grow": 0,
+                "shrink": 0,
+                "basis": "auto"
+              },
+              "style": {
+                "gap": "8px"
+              },
+              "instances": []
+            },
+            "propConfig": {
+              "props.instances": {
+                "binding": {
+                  "type": "expr",
+                  "config": {
+                    "expression": "now(10000)"
+                  },
+                  "transforms": [
+                    {
+                      "type": "script",
+                      "code": "\tsite = system.tag.readBlocking([\"[System]Gateway/SystemName\"])[0].value\n\toptions = []\n\tfor r in system.db.runPrepQuery(\"SELECT code, description FROM downtime_reasons ORDER BY sort_order\", [], \"fleetdb\"):\n\t\toptions.append({\"value\": r[\"code\"], \"label\": r[\"description\"]})\n\tquery = \"SELECT event_id, equipment, started_at, cleared_at, acknowledged_at, ongoing, reason_code, counts_against_availability FROM downtime_intervals WHERE site = ? ORDER BY started_at DESC LIMIT 40\"\n\trows = []\n\tfor r in system.db.runPrepQuery(query, [site], \"fleetdb\"):\n\t\tif r[\"ongoing\"]:\n\t\t\tduration = \"ongoing\"\n\t\telse:\n\t\t\tseconds = int(round((r[\"cleared_at\"].getTime() - r[\"started_at\"].getTime()) / 1000.0))\n\t\t\tduration = \"%d s\" % seconds if seconds < 60 else \"%d min %d s\" % (seconds // 60, seconds % 60)\n\t\tif r[\"acknowledged_at\"] is None:\n\t\t\tacknowledged = \"not yet\"\n\t\telse:\n\t\t\tacknowledged = system.date.format(r[\"acknowledged_at\"], \"HH:mm:ss\")\n\t\trows.append({\"event_id\": r[\"event_id\"], \"equipment\": r[\"equipment\"], \"started\": system.date.format(r[\"started_at\"], \"yyyy-MM-dd HH:mm:ss\"), \"duration\": duration, \"acknowledged\": acknowledged, \"reason_code\": r[\"reason_code\"], \"counts\": bool(r[\"counts_against_availability\"]), \"options\": options})\n\treturn rows"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Note"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Development only: this page has no login, so a reason is saved as chosen by \"unknown\" (ADR 0004, ADR 0020).",
+              "style": {
+                "color": "#8a5a00",
+                "fontSize": "12px"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

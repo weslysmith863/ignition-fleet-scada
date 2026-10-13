@@ -11,6 +11,9 @@
     },
     "/faults": {
       "viewPath": "Faults"
+    },
+    "/downtime": {
+      "viewPath": "Downtime"
     }
   },
   "sharedDocks": {

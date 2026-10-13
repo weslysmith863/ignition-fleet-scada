@@ -1,0 +1,265 @@
+{
+  "custom": {},
+  "params": {
+    "event_id": "",
+    "equipment": "",
+    "started": "",
+    "duration": "",
+    "acknowledged": "",
+    "reason_code": "UNASSIGNED",
+    "counts": true,
+    "options": []
+  },
+  "propConfig": {
+    "params.event_id": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.equipment": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.started": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.duration": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.acknowledged": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.reason_code": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.counts": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.options": {
+      "paramDirection": "input",
+      "persistent": true
+    }
+  },
+  "props": {
+    "defaultSize": {
+      "width": 1000,
+      "height": 52
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "row",
+      "alignItems": "center",
+      "style": {
+        "backgroundColor": "#ffffff",
+        "border": "1px solid #d7dde3",
+        "borderRadius": "8px",
+        "gap": "8px",
+        "padding": "6px 12px"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Equipment"
+        },
+        "position": {
+          "basis": "110px",
+          "shrink": 0
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "14px",
+            "fontWeight": "600"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.equipment"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Started"
+        },
+        "position": {
+          "basis": "170px",
+          "shrink": 0
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "14px",
+            "fontWeight": "400"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.started"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Duration"
+        },
+        "position": {
+          "basis": "110px",
+          "shrink": 0
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "14px",
+            "fontWeight": "400"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.duration"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Acknowledged"
+        },
+        "position": {
+          "basis": "130px",
+          "shrink": 0
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "14px",
+            "fontWeight": "400"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.acknowledged"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.input.dropdown",
+        "meta": {
+          "name": "Reason"
+        },
+        "position": {
+          "basis": "250px",
+          "shrink": 0
+        },
+        "props": {
+          "options": [],
+          "value": "UNASSIGNED",
+          "placeholder": {
+            "text": "Choose a reason"
+          },
+          "showClearIcon": false
+        },
+        "propConfig": {
+          "props.options": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.options"
+              }
+            }
+          },
+          "props.value": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.reason_code"
+              }
+            }
+          }
+        },
+        "events": {
+          "component": {
+            "onActionPerformed": {
+              "type": "script",
+              "scope": "G",
+              "config": {
+                "script": "\tsystem.db.runPrepUpdate(\"INSERT INTO downtime_reason_assignments (event_id, reason_code, assigned_by) VALUES (?, ?, 'unknown') ON CONFLICT (event_id) DO UPDATE SET reason_code = EXCLUDED.reason_code, assigned_by = EXCLUDED.assigned_by, assigned_at = now()\", [self.view.params.event_id, self.props.value], \"fleetdb\")"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Availability"
+        },
+        "position": {
+          "grow": 1
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "fontSize": "13px",
+            "fontWeight": "600"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "if({view.params.counts}, \"Counts against availability\", \"Excluded from availability\")"
+              }
+            }
+          },
+          "props.style.color": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "if({view.params.counts}, \"#8a5a00\", \"#5f6b76\")"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
