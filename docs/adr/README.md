@@ -23,3 +23,4 @@ changes, add a new ADR that supersedes the old one.
 | [0016](0016-phase2-battery-size-behavior-registers-and-control.md) | The battery: size, behavior, registers, and control | Accepted (not yet reviewed by Wes) |
 | [0017](0017-phase3-fault-injection-by-plant-controller-node.md) | Fault injection by a plant controller node | Accepted (not yet reviewed by Wes) |
 | [0018](0018-phase3-unacknowledged-alarm-escalation-pipeline.md) | Escalating an unacknowledged alarm with an alarm pipeline | Accepted (not yet reviewed by Wes) |
+| [0019](0019-phase3-mock-cmms-and-repair-tickets.md) | A mock CMMS that receives repair tickets from Event Streams | Accepted (not yet reviewed by Wes) |

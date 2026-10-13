@@ -166,6 +166,27 @@ services:
       retries: 6
       start_period: 10s
 
+  # The mock CMMS (ADR 0019): a stand-in maintenance system. The site gateways' Event Streams POST repair tickets to it as
+  # http://cmms:8000/tickets on the Compose network. Its tickets live in its own SQLite file on the cmms-data volume, not in
+  # fleetdb, as a real maintenance system's would. The web page and /docs are published on this PC's loopback as 8100.
+  cmms:
+    build:
+      context: .
+      dockerfile: cmms/Dockerfile
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-America/Chicago}
+    ports:
+      - "127.0.0.1:8100:8000"
+    volumes:
+      - cmms-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
   # OEM-integrated site 1 (ADR 0015): three 1500 kW inverters (4.5 MWac). Units 1 to 3 are the inverters, 4 the weather
   # station, 5 the meter. The hub reads it as oem1:15020 and keeps its tags in a provider named oem1.
   oem1:
@@ -233,3 +254,4 @@ volumes:
   site1-data:
   site2-data:
   postgres-data:
+  cmms-data:

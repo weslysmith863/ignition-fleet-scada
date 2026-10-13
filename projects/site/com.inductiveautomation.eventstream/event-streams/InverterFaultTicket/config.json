@@ -1,0 +1,97 @@
+{
+  "enabled": true,
+  "source": {
+    "type": "ignition.tagEvent",
+    "config": {
+      "paths": [
+        "[default]Inverters/*/Raw/St"
+      ],
+      "changeTypes": [
+        "VALUE"
+      ],
+      "skipInitialValues": false
+    }
+  },
+  "sourceEncoder": {
+    "type": "ignition.jsonObject",
+    "properties": {
+      "encoding": "UTF-8"
+    }
+  },
+  "handlers": [
+    {
+      "enabled": true,
+      "type": "ignition.logger",
+      "config": {
+        "name": {
+          "data": "\"InverterFaultTicket\"",
+          "type": "EXPRESSION"
+        },
+        "logLevel": "INFO",
+        "message": {
+          "data": "\"data\u003d\" + toStr({event.data}) + \" | metadata\u003d\" + toStr({event.metadata})",
+          "type": "EXPRESSION"
+        }
+      },
+      "failureStrategy": {
+        "type": "ABORT",
+        "retryPolicy": null
+      }
+    },
+    {
+      "enabled": true,
+      "type": "ignition.http",
+      "config": {
+        "type": "POST",
+        "cookiesEnabled": true,
+        "connectionTimeout": 30000,
+        "httpVersion": "HTTP_1_1",
+        "url": {
+          "data": "\"http://cmms:8000/tickets\"",
+          "type": "EXPRESSION"
+        },
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": {
+              "data": "\"application/json\"",
+              "type": "EXPRESSION"
+            }
+          }
+        ],
+        "body": {
+          "data": "{event.data}",
+          "type": "EXPRESSION"
+        }
+      },
+      "failureStrategy": {
+        "type": "ABORT",
+        "retryPolicy": null
+      }
+    }
+  ],
+  "batch": {
+    "debounceMs": 100,
+    "maxWaitMs": 1000,
+    "maxQueueSize": 0,
+    "overflow": "DROP_OLDEST"
+  },
+  "filter": {
+    "enabled": true,
+    "userCode": "    return event.data[\"value\"] \u003d\u003d 7"
+  },
+  "transform": {
+    "enabled": true,
+    "userCode": "\ttag_path \u003d event.metadata[\"tagPath\"]\n\tequipment \u003d tag_path.split(\"/\")[1]\n\tsite \u003d system.tag.readBlocking([\"[System]Gateway/SystemName\"])[0].value\n\treturn {\"site\": site, \"equipment\": equipment, \"fault_started_at\": event.data[\"timestamp\"], \"priority\": \"High\", \"summary\": \"Inverter fault on \" + site + \" \" + equipment}"
+  },
+  "transformEncoder": {
+    "type": "ignition.jsonObject",
+    "properties": {
+      "encoding": "UTF-8"
+    }
+  },
+  "onError": {
+    "enabled": false,
+    "userCode": ""
+  }
+}

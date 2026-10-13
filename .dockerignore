@@ -1,7 +1,9 @@
-# The build context is the repo root, but only sim/ is ever needed. Start from nothing and allow it back in,
+# The build context is the repo root, but only sim/ and cmms/ are ever needed. Start from nothing and allow them back in,
 # so .env, the gateway notes, and the .venv can never end up inside an image.
 *
 !sim/
 sim/tests/
+!cmms/
+cmms/tests/
 **/__pycache__/
 **/*.pyc

@@ -235,5 +235,33 @@ class PortTests(unittest.TestCase):
         self.assertFalse({8088, 5020} & published)  # DosingControl on this PC uses 8088 and its Modbus device 5020
 
 
+class CmmsTests(unittest.TestCase):
+    """ADR 0019: the mock CMMS that the site gateways' Event Streams post repair tickets to."""
+
+    def test_the_service_builds_from_its_own_dockerfile_and_is_published_on_loopback_8100(self):
+        block = SERVICES["cmms"]
+        self.assertIn("dockerfile: cmms/Dockerfile", block)
+        self.assertEqual(published_ports(block), [(8100, 8000)])
+
+    def test_the_container_listens_on_the_published_port_and_keeps_its_tickets_on_a_declared_volume(self):
+        dockerfile = (ROOT / "cmms" / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn('"--port", "8000"', dockerfile)
+        self.assertIn("cmms-data:/data", SERVICES["cmms"])
+        self.assertIn("cmms-data", declared_volumes(COMPOSE))
+
+    def test_the_image_only_ever_receives_the_folders_it_needs(self):
+        ignore = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(ignore[ignore.index("*") + 1:ignore.index("*") + 2], ["!sim/"])  # everything is excluded first
+        self.assertIn("!cmms/", ignore)
+        self.assertIn("cmms/tests/", ignore)
+
+    def test_every_package_in_the_requirements_is_pinned_exactly(self):
+        lines = [line for line in (ROOT / "cmms" / "requirements.txt").read_text(encoding="utf-8").splitlines()
+                 if line.strip() and not line.startswith("#")]
+        self.assertGreater(len(lines), 2)
+        for line in lines:
+            self.assertRegex(line, r"^[A-Za-z0-9_.-]+==\d+(\.\d+)*$")
+
+
 if __name__ == "__main__":
     unittest.main()
