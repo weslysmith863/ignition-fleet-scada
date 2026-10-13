@@ -251,6 +251,7 @@
             {
               "alarms": [
                 {
+                  "activePipeline": "site/UnackedEscalation",
                   "label": "Inverter fault",
                   "name": "InverterFault",
                   "priority": "High",

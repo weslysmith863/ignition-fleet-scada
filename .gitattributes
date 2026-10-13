@@ -10,3 +10,5 @@
 *.md text eol=lf
 *.csv text eol=lf
 *.sql text eol=lf
+# A pipeline's data.bin is gzipped Java serialization: never convert it.
+*.bin binary
