@@ -1,8 +1,9 @@
 """OPC UA server for the plant controller (ADR 0007 decision 5, ADR 0010). Needs asyncua (sim/requirements.txt).
 
-Publishes the six nodes of sim.plant_controller.PlantController under an object named PlantController. The node IDs are
+Publishes the seven nodes of sim.plant_controller.PlantController under an object named PlantController. The node IDs are
 text: ns=2;s=PlantController.POI_MW and so on, where the namespace index follows the namespace URI below. Clients write
-ActivePowerLimit_MW and LimitEnable; the server applies them to the plant controller and writes the accepted values back.
+ActivePowerLimit_MW, LimitEnable, and TripInverter (ADR 0017); the server applies them to the plant controller and writes the
+accepted values back.
 
 Writes are picked up by polling twice a second rather than by a write callback: simple, and a limit that is half a second
 late is far inside the simulator's own one-second tick. No security (anonymous, no encryption): dev only, ADR 0010.
@@ -15,7 +16,7 @@ NAMESPACE_URI = "urn:fleet-scada:simulator"
 OBJECT_NAME = "PlantController"
 ENDPOINT_PATH = "/fleet-scada/sim"
 SYNC_PERIOD_S = 0.5
-WRITABLE = ("ActivePowerLimit_MW", "LimitEnable")
+WRITABLE = ("ActivePowerLimit_MW", "LimitEnable", "TripInverter")
 VARIANT_TYPES = {
     "ActivePowerLimit_MW": ua.VariantType.Double,
     "LimitEnable": ua.VariantType.Boolean,
@@ -23,6 +24,7 @@ VARIANT_TYPES = {
     "POI_MW": ua.VariantType.Double,
     "Status": ua.VariantType.String,
     "RatedMW": ua.VariantType.Double,
+    "TripInverter": ua.VariantType.Int32,  # 0 for none, else the number of the faulted inverter (ADR 0017)
 }
 BATTERY_WRITABLE = ("BatteryMode", "BatterySetpoint_MW")  # only on a plant with a battery (ADR 0016 decision 6)
 BATTERY_TYPES = {
@@ -70,8 +72,9 @@ async def serve(controller, host, port, log=print, started=None):
             seen = {name: await nodes[name].read_value() for name in writable}
             if seen != last:  # a client wrote one of them
                 limit_mw, enabled = controller.command(seen["ActivePowerLimit_MW"], seen["LimitEnable"])
-                accepted = {"ActivePowerLimit_MW": limit_mw, "LimitEnable": enabled}
-                message = "plant controller command: limit %.3f MW, enabled %s" % (limit_mw, enabled)
+                tripped = controller.command_trip(seen["TripInverter"])
+                accepted = {"ActivePowerLimit_MW": limit_mw, "LimitEnable": enabled, "TripInverter": tripped}
+                message = "plant controller command: limit %.3f MW, enabled %s, tripped inverter %d" % (limit_mw, enabled, tripped)
                 if controller.has_battery:
                     mode, setpoint_mw = controller.command_battery(seen["BatteryMode"], seen["BatterySetpoint_MW"])
                     accepted.update({"BatteryMode": mode, "BatterySetpoint_MW": setpoint_mw})

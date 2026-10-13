@@ -1,13 +1,15 @@
-"""The plant controller's six OPC UA nodes as plain Python (ADR 0007, decision 5; RatedMW added in Phase 2). Standard library only.
+"""The plant controller's seven OPC UA nodes as plain Python (ADR 0007, decision 5; RatedMW added in Phase 2; TripInverter in
+Phase 3, ADR 0017). Standard library only.
 
 The OPC UA server (sim/opcua_server.py) is a thin front for this class: it publishes `readings()` and passes written
 setpoints to `command()`. The behavior lives here so it can be tested without an OPC UA library.
 
-Nodes: ActivePowerLimit_MW (write), LimitEnable (write), LimitActive (read), POI_MW (read), Status (read), RatedMW (read).
+Nodes: ActivePowerLimit_MW (write), LimitEnable (write), LimitActive (read), POI_MW (read), Status (read), RatedMW (read),
+TripInverter (write): 0 for none, or the number of the inverter to fault (fault injection, ADR 0017).
 RatedMW is the plant's AC rating. Unlike ActivePowerLimit_MW, which rests at the rating while no limit is set but moves with
 one, it never changes, so a screen can use it as the scale for the limit and for the plant output.
 A plant with a battery (ADR 0016) has two more nodes, both writable: BatteryMode (Idle, Charge, or Discharge) and
-BatterySetpoint_MW (the size of the power, never negative). A plant without one has exactly the six above.
+BatterySetpoint_MW (the size of the power, never negative). A plant without one has exactly the seven above.
 Reactive power is not modeled; the plant runs at unity power factor (approximated, ADR 0007).
 """
 import math
@@ -32,6 +34,12 @@ class PlantController:
         self._simulation.model.set_limit(self.limit_mw, self.enabled)
         return self.limit_mw, self.enabled
 
+    def command_trip(self, inverter):
+        """Accept the TripInverter node a client wrote (ADR 0017): 0 clears the fault, 1 to the inverter count faults that
+        inverter on the plant model's next step. A value that is not a whole number in that range is ignored. Returns the
+        inverter now tripped, so the server can write it back."""
+        return self._simulation.model.set_trip(inverter)
+
     def command_battery(self, mode, setpoint_mw):
         """Accept the battery nodes a client wrote (ADR 0016 decision 6). Returns the accepted (mode, setpoint in MW); a mode
         that is not Idle, Charge, or Discharge and a setpoint that is not a finite number are ignored, and the setpoint is held
@@ -41,7 +49,7 @@ class PlantController:
         return self._simulation.model.set_battery(mode, setpoint_mw)
 
     def readings(self):
-        """The values of all six nodes, from the latest simulation tick.
+        """The values of all seven nodes, from the latest simulation tick.
 
         LimitActive is true only while the limit is actually reducing output: an enabled limit above what the plant
         could produce changes nothing. That is what separates curtailment from clipping. Status is a design choice:
@@ -62,6 +70,7 @@ class PlantController:
             "POI_MW": poi_mw,
             "Status": status,
             "RatedMW": self.rated_mw,
+            "TripInverter": state["tripped_inverter"],
         }
         if self.has_battery:
             nodes["BatteryMode"] = state["battery_mode"]

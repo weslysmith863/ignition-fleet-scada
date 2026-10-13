@@ -172,7 +172,7 @@ class BatteryControllerTests(unittest.TestCase):
     def test_a_plant_with_a_battery_has_two_more_nodes(self):
         _, controller = make(BATTERY, NIGHT)
         nodes = controller.readings()
-        self.assertEqual(set(nodes) - {"ActivePowerLimit_MW", "LimitEnable", "LimitActive", "POI_MW", "Status", "RatedMW"},
+        self.assertEqual(set(nodes) - {"ActivePowerLimit_MW", "LimitEnable", "LimitActive", "POI_MW", "Status", "RatedMW", "TripInverter"},
                          {"BatteryMode", "BatterySetpoint_MW"})
         self.assertEqual((nodes["BatteryMode"], nodes["BatterySetpoint_MW"]), ("Idle", 0.0))
 

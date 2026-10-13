@@ -61,6 +61,15 @@ class PlantModel:
         self.battery_setpoint_w = 0.0
         self.battery_stored_wh = config.battery_wh * config.battery_soc_start
         self.battery_discharged_wh = 0.0
+        self.tripped_inverter = 0  # 0 means none; otherwise the number of the inverter that is faulted (ADR 0017)
+
+    def set_trip(self, inverter):
+        """Fault injection (ADR 0017): trip inverter number `inverter` (1 to the inverter count), or 0 to clear. A value that is not
+        a whole number in that range is ignored. A tripped inverter makes no power, so its share of any plant limit goes to
+        nothing too: the limit is shared out among the inverters still running. Returns the inverter now tripped."""
+        if isinstance(inverter, int) and not isinstance(inverter, bool) and 0 <= inverter <= self.config.inverters:
+            self.tripped_inverter = inverter
+        return self.tripped_inverter
 
     def set_limit(self, limit_mw, enabled):
         """The plant controller's active power limit. An enabled limit is applied immediately (Layer Card 1, step 9)."""
@@ -119,6 +128,9 @@ class PlantModel:
         inverter_dc_limit_w = cfg.inverter_ac_w / cfg.eta_nom
         dc_w = [p.pvwatts_dc_w(poa, cell_c, module_dc0_w, cfg.gamma) for _ in range(cfg.inverters)]
         unlimited_ac_w = [p.pvwatts_inverter_ac_w(dc, inverter_dc_limit_w, cfg.eta_nom, cfg.eta_ref) for dc in dc_w]
+        if self.tripped_inverter:  # a faulted inverter takes no power from its array and delivers none (ADR 0017)
+            dc_w[self.tripped_inverter - 1] = 0.0
+            unlimited_ac_w[self.tripped_inverter - 1] = 0.0
 
         total_unlimited_w = sum(unlimited_ac_w)
         limit_binding = self.limit_enabled and self.limit_w < total_unlimited_w
@@ -153,6 +165,7 @@ class PlantModel:
             "limit_enabled": self.limit_enabled,
             "limit_w": self.limit_w,
             "limit_binding": limit_binding,
+            "tripped_inverter": self.tripped_inverter,
             "battery_mode": self.battery_mode,
             "battery_setpoint_w": self.battery_setpoint_w,
             "battery_w": battery_w,

@@ -64,6 +64,53 @@ class PlantModelTests(unittest.TestCase):
         self.assertLess(curtailed["poi_w"], RATED_PLANT_W)
         self.assertTrue(curtailed["limit_binding"])
 
+    def test_a_tripped_inverter_makes_no_power_and_the_others_carry_on(self):
+        # ADR 0017: at clear noon every inverter sits at its 1.25 MW rating, so tripping one takes exactly its share away
+        model = PlantModel(CLEAR)
+        self.assertEqual(model.set_trip(2), 2)
+        state = model.step(NOON_JUNE, 1.0)
+        self.assertEqual(state["tripped_inverter"], 2)
+        self.assertEqual(state["inverter_ac_w"][1], 0.0)
+        self.assertEqual(state["inverter_dc_w"][1], 0.0)
+        for index in (0, 2, 3):
+            self.assertAlmostEqual(state["inverter_ac_w"][index], 1.25e6, delta=1.0)
+        self.assertAlmostEqual(state["poi_w"], RATED_PLANT_W - 1.25e6, delta=4.0)
+        self.assertEqual(state["inverter_energy_wh"][1], 0.0)
+
+    def test_clearing_the_trip_restores_the_inverter(self):
+        model = PlantModel(CLEAR)
+        model.set_trip(3)
+        model.step(NOON_JUNE, 1.0)
+        self.assertEqual(model.set_trip(0), 0)
+        state = model.step(NOON_JUNE, 1.0)
+        self.assertEqual(state["tripped_inverter"], 0)
+        self.assertAlmostEqual(state["poi_w"], RATED_PLANT_W, delta=4.0)
+
+    def test_a_trip_value_outside_the_plant_is_ignored(self):
+        model = PlantModel(CLEAR)
+        model.set_trip(2)
+        for bad in (-1, 5, 2.0, "2", None, True):
+            self.assertEqual(model.set_trip(bad), 2)  # the inverter already tripped stays tripped
+        self.assertEqual(model.set_trip(4), 4)  # the last inverter of a four-inverter plant is a valid choice
+
+    def test_a_limit_is_shared_among_the_inverters_that_are_still_running(self):
+        model = PlantModel(CLEAR)
+        model.set_trip(1)
+        model.set_limit(1.5, True)
+        state = model.step(NOON_JUNE, 1.0)
+        self.assertEqual(state["inverter_ac_w"][0], 0.0)
+        self.assertAlmostEqual(state["poi_w"], 1.5e6, delta=1.0)
+        for index in (1, 2, 3):
+            self.assertAlmostEqual(state["inverter_ac_w"][index], 0.5e6, delta=1.0)
+
+    def test_a_trip_does_not_bind_a_limit_that_the_remaining_inverters_cannot_reach(self):
+        model = PlantModel(CLEAR)
+        model.set_trip(1)
+        model.set_limit(4.0, True)  # three inverters can only make 3.75 MW, so 4.0 MW changes nothing
+        state = model.step(NOON_JUNE, 1.0)
+        self.assertFalse(state["limit_binding"])
+        self.assertAlmostEqual(state["poi_w"], 3.75e6, delta=4.0)
+
     def test_energy_accumulates_in_watt_hours(self):
         model = PlantModel(CLEAR)
         state = model.step(NOON_JUNE, 3600.0)  # one hour at the noon value

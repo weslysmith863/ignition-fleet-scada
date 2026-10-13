@@ -1,0 +1,313 @@
+{
+  "custom": {},
+  "params": {},
+  "props": {
+    "defaultSize": {
+      "width": 1100,
+      "height": 700
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column",
+      "style": {
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.view",
+        "meta": {
+          "name": "Header"
+        },
+        "position": {
+          "basis": "auto",
+          "shrink": 0
+        },
+        "props": {
+          "path": "Header",
+          "useDefaultViewHeight": true
+        }
+      },
+      {
+        "type": "ia.container.flex",
+        "meta": {
+          "name": "Content"
+        },
+        "position": {
+          "grow": 1
+        },
+        "props": {
+          "direction": "column",
+          "style": {
+            "padding": "20px",
+            "gap": "16px"
+          }
+        },
+        "children": [
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Title"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Fault injection",
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "20px",
+                "fontWeight": "600"
+              }
+            }
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Help"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Press a button to trip that inverter. This is an order to the plant controller over OPC UA. The inverter's real response comes back separately over Modbus and appears in the cards below: a tripped inverter shows 0 kW and the state Fault. One inverter can be tripped at a time; Clear restores it.",
+              "style": {
+                "color": "#5f6b76",
+                "fontSize": "13px"
+              }
+            }
+          },
+          {
+            "type": "ia.container.flex",
+            "meta": {
+              "name": "Orders"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "direction": "row",
+              "alignItems": "center",
+              "style": {
+                "gap": "12px"
+              }
+            },
+            "children": [
+              {
+                "type": "ia.display.flex-repeater",
+                "meta": {
+                  "name": "TripButtons"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "path": "TripButton",
+                  "direction": "row",
+                  "wrap": "wrap",
+                  "useDefaultViewWidth": true,
+                  "useDefaultViewHeight": true,
+                  "style": {
+                    "gap": "12px"
+                  },
+                  "instances": []
+                },
+                "propConfig": {
+                  "props.instances": {
+                    "binding": {
+                      "type": "expr",
+                      "config": {
+                        "expression": "1"
+                      },
+                      "transforms": [
+                        {
+                          "type": "script",
+                          "code": "\tresults = system.tag.browse(\"[default]Inverters\").getResults()\n\tnames = sorted([str(r[\"name\"]) for r in results], key=lambda n: (len(n), n))\n\treturn [{\"inverter\": int(n.replace(\"Inv\", \"\"))} for n in names]"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "type": "ia.input.button",
+                "meta": {
+                  "name": "Clear"
+                },
+                "position": {
+                  "basis": "auto",
+                  "shrink": 0
+                },
+                "props": {
+                  "text": "Clear fault",
+                  "style": {
+                    "backgroundColor": "#2e7d32",
+                    "color": "#ffffff",
+                    "fontWeight": "600",
+                    "borderRadius": "6px",
+                    "padding": "0 16px",
+                    "height": "44px"
+                  }
+                },
+                "events": {
+                  "component": {
+                    "onActionPerformed": {
+                      "type": "script",
+                      "scope": "G",
+                      "config": {
+                        "script": "\tsystem.tag.writeBlocking([\"[default]PlantController/TripInverter\"], [0])"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "OrderReadback"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "",
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "14px",
+                "fontWeight": "600"
+              }
+            },
+            "propConfig": {
+              "props.text": {
+                "binding": {
+                  "type": "expr",
+                  "config": {
+                    "expression": "\"Order the plant controller holds: \" + if({[default]PlantController/TripInverter} = 0, \"no fault\", \"trip inverter \" + toStr({[default]PlantController/TripInverter}))"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "ResultTitle"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Inverters (the result, read back over Modbus)",
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "16px",
+                "fontWeight": "600"
+              }
+            }
+          },
+          {
+            "type": "ia.display.flex-repeater",
+            "meta": {
+              "name": "Inverters"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "path": "InverterCard",
+              "direction": "row",
+              "wrap": "wrap",
+              "useDefaultViewWidth": false,
+              "useDefaultViewHeight": true,
+              "elementPosition": {
+                "grow": 1,
+                "shrink": 1,
+                "basis": "220px"
+              },
+              "style": {
+                "gap": "16px"
+              },
+              "instances": []
+            },
+            "propConfig": {
+              "props.instances": {
+                "binding": {
+                  "type": "expr",
+                  "config": {
+                    "expression": "1"
+                  },
+                  "transforms": [
+                    {
+                      "type": "script",
+                      "code": "\tresults = system.tag.browse(\"[default]Inverters\").getResults()\n\tnames = sorted([str(r[\"name\"]) for r in results], key=lambda n: (len(n), n))\n\treturn [{\"inverter\": n} for n in names]"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "AlarmsTitle"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Alarms (raised by the gateway from the inverter's state)",
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "16px",
+                "fontWeight": "600"
+              }
+            }
+          },
+          {
+            "type": "ia.display.alarmstatustable",
+            "meta": {
+              "name": "Alarms"
+            },
+            "position": {
+              "basis": "260px",
+              "shrink": 0
+            },
+            "props": {}
+          },
+          {
+            "type": "ia.display.label",
+            "meta": {
+              "name": "Note"
+            },
+            "position": {
+              "basis": "auto",
+              "shrink": 0
+            },
+            "props": {
+              "text": "Development only: this page has no login and writes straight to the simulator's OPC UA server (ADR 0012, ADR 0017).",
+              "style": {
+                "color": "#8a5a00",
+                "fontSize": "12px"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

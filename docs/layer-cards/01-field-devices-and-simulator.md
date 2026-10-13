@@ -37,7 +37,7 @@ flowchart LR
     PCM["plant controller model<br>power limit"] --> INV
     INV --> MET["POI meter model"]
     MB["Modbus TCP server<br>inverters: units 1 to 4<br>weather station, meter"]
-    OPC["OPC UA server<br>plant controller, 6 nodes"]
+    OPC["OPC UA server<br>plant controller, 7 nodes"]
   end
   SITE1["site1 gateway"]
   SITE1 -->|"Modbus TCP, one device per inverter"| MB
@@ -55,8 +55,12 @@ flowchart LR
   which are read-only mirrors in Phase 1), the weather station on unit 5 (models 302, 303, 307), and the POI meter on
   unit 6 (model 203). Details are in [ADR 0009](../adr/0009-phase1-weather-meter-layouts-unit-ids-inverter-details.md)
   and the generated [register map](../points/site1-register-map.md).
-- The six plant controller nodes: `ActivePowerLimit_MW` and `LimitEnable` (write), `LimitActive`, `POI_MW`, `Status`, and
-  `RatedMW` (read; the plant's AC rating, added in Phase 2 as the scale for the limit).
+- The seven plant controller nodes: `ActivePowerLimit_MW`, `LimitEnable`, and `TripInverter` (write), `LimitActive`, `POI_MW`,
+  `Status`, and `RatedMW` (read; the plant's AC rating, added in Phase 2 as the scale for the limit). `TripInverter` (Phase 3,
+  [ADR 0017](../adr/0017-phase3-fault-injection-by-plant-controller-node.md)) is a whole number: 0 for no fault, or the number of
+  the inverter to fault. The simulator then stops that inverter (0 kW) and its model 103 status register reads 7, Fault. The
+  order goes in over OPC UA and the result comes back over Modbus. A plant with a battery adds `BatteryMode` and
+  `BatterySetpoint_MW` (ADR 0016).
 - Enforcing an accepted power limit by capping inverter output, so curtailment shows up in the data.
 
 ## The physics chain

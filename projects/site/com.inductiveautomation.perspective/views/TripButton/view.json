@@ -1,0 +1,68 @@
+{
+  "custom": {},
+  "params": {
+    "inverter": 1
+  },
+  "propConfig": {
+    "params.inverter": {
+      "paramDirection": "input",
+      "persistent": true
+    }
+  },
+  "props": {
+    "defaultSize": {
+      "width": 150,
+      "height": 44
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "column"
+    },
+    "children": [
+      {
+        "type": "ia.input.button",
+        "meta": {
+          "name": "Trip"
+        },
+        "position": {
+          "grow": 1
+        },
+        "props": {
+          "text": "Trip inverter",
+          "style": {
+            "backgroundColor": "#b3261e",
+            "color": "#ffffff",
+            "fontWeight": "600",
+            "borderRadius": "6px"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "expr",
+              "config": {
+                "expression": "\"Trip inverter \" + toStr({view.params.inverter})"
+              }
+            }
+          }
+        },
+        "events": {
+          "component": {
+            "onActionPerformed": {
+              "type": "script",
+              "scope": "G",
+              "config": {
+                "script": "\tsystem.tag.writeBlocking([\"[default]PlantController/TripInverter\"], [int(self.view.params.inverter)])"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -37,7 +37,8 @@ class PlantControllerTests(unittest.TestCase):
     def test_an_untouched_controller_reports_the_plant_unrestricted(self):
         _, controller = make(NOON_JUNE)
         nodes = controller.readings()
-        self.assertEqual(set(nodes), {"ActivePowerLimit_MW", "LimitEnable", "LimitActive", "POI_MW", "Status", "RatedMW"})
+        self.assertEqual(set(nodes), {"ActivePowerLimit_MW", "LimitEnable", "LimitActive", "POI_MW", "Status", "RatedMW", "TripInverter"})
+        self.assertEqual(nodes["TripInverter"], 0)
         self.assertEqual(nodes["RatedMW"], 5.0)
         self.assertEqual(nodes["ActivePowerLimit_MW"], 5.0)
         self.assertFalse(nodes["LimitEnable"])
@@ -105,6 +106,37 @@ class PlantControllerTests(unittest.TestCase):
         nodes = controller.readings()
         self.assertEqual(nodes["POI_MW"], 0.0)
         self.assertEqual(nodes["Status"], "Curtailed")
+
+    def test_a_tripped_inverter_takes_its_share_off_the_plant_on_the_next_tick(self):
+        simulation, controller = make(NOON_JUNE)
+        self.assertEqual(controller.command_trip(2), 2)
+        self.assertAlmostEqual(controller.readings()["POI_MW"], 5.0, places=3)  # nothing changes until the model steps
+        simulation.tick(NOON_JUNE, 1.0)
+        nodes = controller.readings()
+        self.assertEqual(nodes["TripInverter"], 2)
+        self.assertAlmostEqual(nodes["POI_MW"], 3.75, places=3)
+        self.assertEqual(nodes["Status"], "Producing")  # a lost inverter is not a curtailment
+
+    def test_clearing_the_trip_brings_the_plant_back(self):
+        simulation, controller = make(NOON_JUNE)
+        controller.command_trip(1)
+        simulation.tick(NOON_JUNE, 1.0)
+        self.assertEqual(controller.command_trip(0), 0)
+        simulation.tick(NOON_JUNE, 1.0)
+        self.assertAlmostEqual(controller.readings()["POI_MW"], 5.0, places=3)
+
+    def test_a_trip_value_that_is_not_an_inverter_of_this_plant_is_ignored(self):
+        _, controller = make(NOON_JUNE)
+        controller.command_trip(3)
+        for bad in (9, -1, 1.5, "1", None, True):
+            self.assertEqual(controller.command_trip(bad), 3)
+
+    def test_the_trip_range_follows_the_inverter_count(self):
+        simulation = Simulation(SiteConfig(clouds_enabled=False, inverters=6), noise=False)
+        simulation.tick(NOON_JUNE, 1.0)
+        controller = PlantController(simulation)
+        self.assertEqual(controller.command_trip(6), 6)
+        self.assertEqual(controller.command_trip(7), 6)  # a six-inverter plant has no inverter 7
 
     def test_standby_at_night(self):
         _, controller = make(NIGHT)

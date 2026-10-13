@@ -63,6 +63,36 @@ class EncodingTests(unittest.TestCase):
         self.assertEqual(len(s._encode("string", 16, "x")), 16)
 
 
+class FaultInjectionTests(unittest.TestCase):
+    """ADR 0017: a tripped inverter reports state 7 (Fault) and no power through its own unit, and nobody else is affected."""
+
+    def registers(self, when, tripped):
+        model = PlantModel(CLEAR)
+        model.set_trip(tripped)
+        state = model.step(when, 1.0)
+        return s.all_registers(state, CLEAR, random.Random(0), noise=False)
+
+    def test_the_tripped_inverter_reads_fault_and_zero_power_and_the_others_read_normally(self):
+        regs = self.registers(NOON, 3)
+        self.assertEqual(value(regs[3], 103, "St"), s.ST_FAULT)
+        self.assertEqual(s.ST_FAULT, 7)
+        self.assertEqual(signed(value(regs[3], 103, "W")), 0)
+        self.assertEqual(signed(value(regs[3], 103, "DCW")), 0)
+        for unit in (1, 2, 4):
+            self.assertEqual(value(regs[unit], 103, "St"), s.ST_THROTTLED)  # clipping at noon, as before
+            self.assertEqual(signed(value(regs[unit], 103, "W")), 12500)  # 1.25 MW in units of 100 W
+
+    def test_the_trip_shows_even_when_the_inverter_would_be_asleep(self):
+        regs = self.registers(NIGHT, 1)
+        self.assertEqual(value(regs[1], 103, "St"), s.ST_FAULT)
+        self.assertEqual(value(regs[2], 103, "St"), s.ST_SLEEPING)
+
+    def test_with_nothing_tripped_no_inverter_reads_fault(self):
+        regs = self.registers(NOON, 0)
+        for unit in (1, 2, 3, 4):
+            self.assertNotEqual(value(regs[unit], 103, "St"), s.ST_FAULT)
+
+
 class ModelChainTests(unittest.TestCase):
     def test_every_block_length_matches_the_model(self):
         for model_id, expected in EXPECTED_BODY_LENGTH.items():

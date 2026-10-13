@@ -249,6 +249,14 @@
               "valueSource": "opc"
             },
             {
+              "alarms": [
+                {
+                  "label": "Inverter fault",
+                  "name": "InverterFault",
+                  "priority": "High",
+                  "setpointA": 7.0
+                }
+              ],
               "name": "St",
               "opcItemPath": {
                 "bindType": "parameter",
@@ -466,6 +474,14 @@
           "dataType": "String",
           "name": "Status",
           "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.Status",
+          "opcServer": "PlantController",
+          "tagType": "AtomicTag",
+          "valueSource": "opc"
+        },
+        {
+          "dataType": "Int4",
+          "name": "TripInverter",
+          "opcItemPath": "nsu=urn:fleet-scada:simulator;s=PlantController.TripInverter",
           "opcServer": "PlantController",
           "tagType": "AtomicTag",
           "valueSource": "opc"

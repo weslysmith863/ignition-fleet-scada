@@ -21,6 +21,7 @@ NOT_IMPLEMENTED = {
 }
 
 ST_OFF, ST_SLEEPING, ST_STARTING, ST_MPPT, ST_THROTTLED = 1, 2, 3, 4, 5  # SunSpec model 103 operating states
+ST_FAULT = 7  # the same enumeration; the Inverter UDT already maps 7 to "Fault" (ADR 0017)
 # SunSpec model 802 enumerations, read from the published model definition (ADR 0016)
 CHA_EMPTY, CHA_DISCHARGING, CHA_CHARGING, CHA_FULL, CHA_HOLDING = 2, 3, 4, 5, 6  # ChaSt
 BAT_CONNECTED, BAT_STANDBY, BAT_SOC_PROTECTION = 3, 4, 5  # State
@@ -136,6 +137,8 @@ def inverter_models(unit, index, state, config, rng, noise=True):
     asleep = state["poa_w_m2"] < 5.0
     throttled = state["limit_binding"] or ac >= 0.999 * rating
     st = ST_SLEEPING if asleep else (ST_THROTTLED if throttled else ST_MPPT)  # design choice (ADR 0009)
+    if state["tripped_inverter"] == index + 1:  # fault injection (ADR 0017): a trip shows even at night
+        st = ST_FAULT
     cabinet_c = state["ambient_c"] + 5.0 + 15.0 * (ac / rating)  # design choice
     if state["limit_enabled"]:
         limit_pct = min(100.0, state["limit_w"] / (config.inverters * rating) * 100.0)

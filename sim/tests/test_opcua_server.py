@@ -9,7 +9,7 @@ from sim.modbus_server import Simulation
 from sim.plant_controller import PlantController
 
 try:
-    from asyncua import Client
+    from asyncua import Client, ua
     from sim import opcua_server
 except ImportError:  # the standard-library-only test run
     opcua_server = None
@@ -54,10 +54,11 @@ class OpcUaServerTests(unittest.IsolatedAsyncioTestCase):
         namespace = await client.get_namespace_index(opcua_server.NAMESPACE_URI)
         return client.get_node("ns=%d;s=%s.%s" % (namespace, opcua_server.OBJECT_NAME, name))
 
-    async def test_a_client_reads_all_six_nodes_with_their_types(self):
+    async def test_a_client_reads_all_seven_nodes_with_their_types(self):
         async with Client(self.url) as client:
             values = {name: await (await self.node(client, name)).read_value() for name in opcua_server.VARIANT_TYPES}
-        self.assertEqual(len(values), 6)
+        self.assertEqual(len(values), 7)
+        self.assertEqual(values["TripInverter"], 0)
         self.assertEqual(values["RatedMW"], 5.0)
         self.assertEqual(values["ActivePowerLimit_MW"], 5.0)
         self.assertIs(values["LimitEnable"], False)
@@ -88,6 +89,28 @@ class OpcUaServerTests(unittest.IsolatedAsyncioTestCase):
                     break
                 await asyncio.sleep(0.1)
             self.assertEqual(await limit.read_value(), 5.0)
+
+    async def test_a_written_trip_reaches_the_model_and_an_invalid_value_is_written_back_as_the_accepted_one(self):
+        async with Client(self.url) as client:
+            trip = await self.node(client, "TripInverter")
+            int32 = lambda number: ua.Variant(number, ua.VariantType.Int32)  # the node is a 32-bit integer; a plain int would be 64-bit
+            await trip.write_value(int32(2))
+            await until(lambda: self.simulation.model.tripped_inverter == 2)
+            self.simulation.tick(NOON_JUNE, 1.0)  # the plant model applies the trip on its next step
+            poi = await self.node(client, "POI_MW")
+            for _ in range(40):
+                if abs(await poi.read_value() - 3.75) < 0.01:
+                    break
+                await asyncio.sleep(0.1)
+            self.assertAlmostEqual(await poi.read_value(), 3.75, places=3)
+            await trip.write_value(int32(99))  # not an inverter of this plant: ignored, and the accepted 2 is shown again
+            for _ in range(40):
+                if await trip.read_value() == 2:
+                    break
+                await asyncio.sleep(0.1)
+            self.assertEqual(await trip.read_value(), 2)
+            await trip.write_value(int32(0))
+            await until(lambda: self.simulation.model.tripped_inverter == 0)
 
     async def test_the_read_only_nodes_refuse_a_client_write(self):
         async with Client(self.url) as client:

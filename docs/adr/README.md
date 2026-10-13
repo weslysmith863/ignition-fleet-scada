@@ -20,3 +20,5 @@ changes, add a new ADR that supersedes the old one.
 | [0013](0013-phase1-simulator-as-a-container.md) | The simulator runs as a Compose service named sim | Accepted |
 | [0014](0014-phase2-fleet-shape-simulators-oem-reads-inheritance-battery.md) | Phase 2 fleet shape, simulators, OEM reads, project inheritance, and battery scope | Accepted |
 | [0015](0015-phase2-oem-sites-names-placement-and-nameplate.md) | OEM-integrated sites: names, where their objects live, and the nameplate tag | Accepted (not yet reviewed by Wes) |
+| [0016](0016-phase2-battery-size-behavior-registers-and-control.md) | The battery: size, behavior, registers, and control | Accepted (not yet reviewed by Wes) |
+| [0017](0017-phase3-fault-injection-by-plant-controller-node.md) | Fault injection by a plant controller node | Accepted (not yet reviewed by Wes) |

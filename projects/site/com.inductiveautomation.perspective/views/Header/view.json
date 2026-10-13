@@ -109,6 +109,22 @@
                 "textDecoration": "none"
               }
             }
+          },
+          {
+            "type": "ia.navigation.link",
+            "meta": {
+              "name": "FaultsLink"
+            },
+            "props": {
+              "text": "Faults",
+              "url": "/faults",
+              "style": {
+                "color": "#cfe3f7",
+                "fontSize": "14px",
+                "padding": "8px 14px",
+                "textDecoration": "none"
+              }
+            }
           }
         ]
       }
