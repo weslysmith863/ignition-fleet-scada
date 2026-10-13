@@ -13,6 +13,7 @@ DEVICE_TYPE = "com.inductiveautomation.opcua/device"
 DATABASE_TYPE = "ignition/database-connection"
 OPC_CONNECTION_TYPE = "ignition/opc-connection"
 HISTORIAN_TYPE = "com.inductiveautomation.historian/historian-provider"
+ALARM_JOURNAL_TYPE = "ignition/alarm-journal"
 TAG_PROVIDER_TYPE = "ignition/tag-provider"
 PROVIDER = "default"
 
@@ -177,6 +178,13 @@ class RestGateway:
 
     def create_historian_provider(self, body):
         return self._call("POST", "/resources/" + HISTORIAN_TYPE, [body])
+
+    def alarm_journal(self, name):
+        """The alarm journal profile resource, or None when it does not exist."""
+        return self._call("GET", "/resources/find/%s/%s" % (ALARM_JOURNAL_TYPE, urllib.parse.quote(name)), allow_404=True)
+
+    def create_alarm_journal(self, body):
+        return self._call("POST", "/resources/" + ALARM_JOURNAL_TYPE, [body])
 
     def update_resource(self, resource_type, resource):
         """Modify one resource (PUT). Only the fields the API accepts are sent, and the signature must match the gateway's

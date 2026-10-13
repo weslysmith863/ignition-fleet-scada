@@ -10,12 +10,13 @@ PLAIN = "plain-password-for-tests"
 
 
 class FakeGateway:
-    def __init__(self, existing=None, historian=None):
+    def __init__(self, existing=None, historian=None, journal=None):
         self.existing = existing
         self.historian = historian
+        self.journal = journal
         self.created = []
         self.encrypted = []
-        self.writes = []  # the order of changes: "connection", "historian"
+        self.writes = []  # the order of changes: "connection", "historian", "journal"
 
     def database_connection(self, name):
         return self.existing
@@ -35,6 +36,13 @@ class FakeGateway:
     def create_historian_provider(self, body):
         self.historian = body
         self.writes.append("historian")
+
+    def alarm_journal(self, name):
+        return self.journal
+
+    def create_alarm_journal(self, body):
+        self.journal = body
+        self.writes.append("journal")
 
 
 class ConnectionTests(unittest.TestCase):
@@ -137,32 +145,121 @@ class HistorianTests(unittest.TestCase):
         self.assertIn("type is 'CoreHistorian', wanted 'SqlHistorian'", lines[0])
 
 
-class ApplyAllTests(unittest.TestCase):
-    def test_the_database_connection_is_created_before_the_provider_that_uses_it(self):
-        gateway = FakeGateway()
-        lines, drift = connections.apply_all(gateway, "fleet", "fleet", PLAIN)
-        self.assertEqual(gateway.writes, ["connection", "historian"])
-        self.assertEqual((lines, drift), (["created connection fleetdb", "created Historian provider Historian"], False))
+class JournalTests(unittest.TestCase):
+    """The alarm journal `AlarmJournal` that records alarm events into fleetdb: created once, never overwritten."""
 
-    def test_a_second_run_changes_nothing(self):
+    def test_the_body_is_a_database_journal_on_fleetdb_writing_the_gateways_own_tables(self):
+        body = connections.journal_body("fleetdb", "site2")
+        self.assertEqual((body["name"], body["collection"], body["enabled"]), ("AlarmJournal", "core", True))
+        self.assertEqual(body["config"]["profile"], {"queryOnly": False, "type": "DATASOURCE"})
+        settings = body["config"]["settings"]
+        self.assertEqual(settings["datasource"], "fleetdb")
+        self.assertEqual(settings["advanced"], {"dataTableName": "alarm_event_data_site2", "tableName": "alarm_events_site2",
+                                                "useStoreAndForward": True})
+        self.assertEqual(settings["events"], {"minPriority": "Low", "storeFromEnabledChange": False, "storeShelvedEvents": True})
+        self.assertEqual(settings["pruning"], {"age": 1, "ageUnits": "YEAR", "enabled": False})
+
+    def test_shelving_is_recorded_unlike_ignitions_default_because_it_silences_an_alarm_without_anyone_acknowledging_it(self):
+        self.assertIs(connections.journal_body("fleetdb", "site1")["config"]["settings"]["events"]["storeShelvedEvents"], True)
+
+    def test_every_gateway_gets_a_different_pair_of_tables(self):
+        pairs = {connections.journal_table_names(site) for site in ("hub", "site1", "site2")}
+        self.assertEqual(len(pairs), 3)
+        self.assertEqual(connections.journal_table_names("hub"), ("alarm_events_hub", "alarm_event_data_hub"))
+
+    def test_the_body_carries_no_password(self):
+        self.assertNotIn("assword", json.dumps(connections.journal_body("fleetdb", "site1")))
+
+    def test_each_body_is_a_fresh_copy(self):
+        first = connections.journal_body("fleetdb", "site1")
+        first["config"]["settings"]["events"]["minPriority"] = "Critical"
+        first["config"]["settings"]["events"]["storeShelvedEvents"] = False
+        first["config"]["settings"]["advanced"]["tableName"] = "changed"
+        again = connections.journal_body("fleetdb", "site1")
+        self.assertEqual(again["config"]["settings"]["events"]["minPriority"], "Low")
+        self.assertIs(again["config"]["settings"]["events"]["storeShelvedEvents"], True)
+        self.assertEqual(again["config"]["settings"]["advanced"]["tableName"], "alarm_events_site1")
+        self.assertNotIn("tableName", connections.JOURNAL_SETTINGS["advanced"])
+
+    def test_a_missing_journal_is_created(self):
         gateway = FakeGateway()
-        connections.apply_all(gateway, "fleet", "fleet", PLAIN)
-        gateway.writes.clear()
-        lines, drift = connections.apply_all(gateway, "fleet", "fleet", PLAIN)
-        self.assertEqual((gateway.writes, drift), ([], False))
-        self.assertEqual(lines, ["unchanged: connection fleetdb", "unchanged: Historian provider Historian"])
+        lines, drift = connections.apply_journal(gateway, "fleetdb", "site2")
+        self.assertEqual((lines, drift), (["created alarm journal AlarmJournal"], False))
+        self.assertEqual(gateway.journal["name"], "AlarmJournal")
+        self.assertEqual(gateway.journal["config"]["settings"]["advanced"]["tableName"], "alarm_events_site2")
 
     def test_a_dry_run_changes_nothing(self):
         gateway = FakeGateway()
-        lines, _ = connections.apply_all(gateway, "fleet", "fleet", PLAIN, dry_run=True)
+        lines, _ = connections.apply_journal(gateway, "fleetdb", "site2", dry_run=True)
+        self.assertEqual(lines, ["would create alarm journal AlarmJournal (database journal on fleetdb, tables "
+                                 "alarm_events_site2 and alarm_event_data_site2)"])
+        self.assertIsNone(gateway.journal)
+
+    def test_an_existing_matching_journal_is_left_alone_even_with_other_settings_and_a_description(self):
+        existing = connections.journal_body("fleetdb", "site1")
+        existing["description"] = ""  # the hand-built one has none
+        existing["config"]["settings"]["events"]["minPriority"] = "High"  # a setting a person changed on purpose
+        gateway = FakeGateway(journal=existing)
+        lines, drift = connections.apply_journal(gateway, "fleetdb", "site1")
+        self.assertEqual((lines, drift, gateway.writes), (["unchanged: alarm journal AlarmJournal"], False, []))
+
+    def test_a_journal_on_another_database_is_reported_as_drift_and_not_fixed(self):
+        existing = connections.journal_body("fleetdb", "site1")
+        existing["config"]["settings"]["datasource"] = "otherdb"
+        gateway = FakeGateway(journal=existing)
+        lines, drift = connections.apply_journal(gateway, "fleetdb", "site1")
+        self.assertTrue(drift)
+        self.assertEqual(lines, ["DRIFT: Alarm journal AlarmJournal: datasource is 'otherdb', wanted 'fleetdb'"])
+        self.assertEqual(gateway.writes, [])
+        self.assertEqual(gateway.journal["config"]["settings"]["datasource"], "otherdb")
+
+    def test_a_journal_still_writing_the_default_tables_is_reported_as_drift_with_the_names_to_set(self):
+        # Wes's hand-built journal on site1 (2026-10-12) used Ignition's default table names; the fix is two fields on its page
+        existing = connections.journal_body("fleetdb", "site1")
+        existing["config"]["settings"]["advanced"].update(tableName="alarm_events", dataTableName="alarm_event_data")
+        gateway = FakeGateway(journal=existing)
+        lines, drift = connections.apply_journal(gateway, "fleetdb", "site1")
+        self.assertTrue(drift)
+        self.assertEqual(lines, ["DRIFT: Alarm journal AlarmJournal: tableName is 'alarm_events', wanted 'alarm_events_site1'",
+                                 "DRIFT: Alarm journal AlarmJournal: dataTableName is 'alarm_event_data', wanted 'alarm_event_data_site1'"])
+        self.assertEqual(gateway.writes, [])
+
+    def test_a_disabled_journal_is_reported_as_drift(self):
+        existing = connections.journal_body("fleetdb", "site1")
+        existing["enabled"] = False
+        lines, drift = connections.apply_journal(FakeGateway(journal=existing), "fleetdb", "site1")
+        self.assertTrue(drift)
+        self.assertIn("enabled is False, wanted True", lines[0])
+
+
+class ApplyAllTests(unittest.TestCase):
+    def test_the_database_connection_is_created_before_the_provider_and_the_journal_that_use_it(self):
+        gateway = FakeGateway()
+        lines, drift = connections.apply_all(gateway, "site2", "fleet", "fleet", PLAIN)
+        self.assertEqual(gateway.writes, ["connection", "historian", "journal"])
+        self.assertEqual((lines, drift), (["created connection fleetdb", "created Historian provider Historian",
+                                           "created alarm journal AlarmJournal"], False))
+
+    def test_a_second_run_changes_nothing(self):
+        gateway = FakeGateway()
+        connections.apply_all(gateway, "site2", "fleet", "fleet", PLAIN)
+        gateway.writes.clear()
+        lines, drift = connections.apply_all(gateway, "site2", "fleet", "fleet", PLAIN)
+        self.assertEqual((gateway.writes, drift), ([], False))
+        self.assertEqual(lines, ["unchanged: connection fleetdb", "unchanged: Historian provider Historian",
+                                 "unchanged: alarm journal AlarmJournal"])
+
+    def test_a_dry_run_changes_nothing(self):
+        gateway = FakeGateway()
+        lines, _ = connections.apply_all(gateway, "site2", "fleet", "fleet", PLAIN, dry_run=True)
         self.assertEqual((gateway.writes, gateway.encrypted), ([], []))
-        self.assertEqual(len(lines), 2)
+        self.assertEqual(len(lines), 3)
 
     def test_drift_in_either_one_is_reported(self):
         existing = connections.connection_body("fleet", "fleet", ENCRYPTED)
         existing["config"]["username"] = "someone"
         gateway = FakeGateway(existing=existing)
-        _, drift = connections.apply_all(gateway, "fleet", "fleet", PLAIN)
+        _, drift = connections.apply_all(gateway, "site2", "fleet", "fleet", PLAIN)
         self.assertTrue(drift)
 
 

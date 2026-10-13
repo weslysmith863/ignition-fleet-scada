@@ -88,7 +88,9 @@ explainable.
   local STANDARD one for an OEM site such as `oem1` (a dry run without `--apply`). `generator/sites.py` says where a site's
   objects live: an OEM site's devices and tags go on the hub (devices named `<site>_<device>`, ADR 0015);
   `python -m generator.connections site1 [--dry-run]` creates the `fleetdb` PostgreSQL connection (password through the
-  encrypt route) and then the SQL Historian provider `Historian`;
+  encrypt route), then the SQL Historian provider `Historian`, then the alarm journal `AlarmJournal` that writes the gateway's
+  own pair of tables `alarm_events_<site>` and `alarm_event_data_<site>` (Wes hand-built the first journal; the generator
+  reports a journal that writes other tables as drift);
   `python -m generator.deploy_project site1 projects/site [--overwrite | --recreate]` deploys a project folder;
   `python -m generator.deploy_all [--overwrite | --recreate] [--dry-run]` deploys `core` + `fleet` to the hub and `core` +
   `site` to every site gateway, parent first;
@@ -148,6 +150,11 @@ explainable.
 - The Maker "Personal Use Only" notice covers every new Perspective session and has an Agree and Close button. Only a person
   clicks it. The built-in browser pane can read the page behind it but cannot click anything, so a write test on the
   Controller page needs Wes.
+- After Docker restarts the containers, the PC's published ports can come back pointing at the wrong ones (finding 71: 8091
+  showed site2, 8092 the hub, 8090 nothing). `StatusPing` still answers, so it hides this. Check that each gateway's key works on
+  its own port and that the page header names the right gateway; `docker.exe compose restart` of the affected services (the
+  simulators too, for their PC-side ports) fixes it. A key is valid on one gateway only, so a crossed port refuses calls (HTTP
+  401) instead of applying them to the wrong gateway.
 - Agent shell: write any script that contains backslash escapes (such as a newline in a string) with the file tools and run
   it. Inside a shell heredoc the escapes get mangled into real line breaks and the script breaks or, worse, runs
   differently. A `cd` in a command also moves the tool's working directory, so use absolute paths.
