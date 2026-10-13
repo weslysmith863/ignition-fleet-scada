@@ -2,7 +2,7 @@
 
 Status: Accepted (2026-10-13). Wes approved the recommendations below. The container is built and tested, and Wes hand-built the
 Event Stream that feeds it in Designer (the section "The Event Stream as built" below); it ran end to end on site1 on 2026-10-13
-(a trip of Inverter 4 became ticket 1, 0.13 s after the trip event). It has not been carried to site2 yet. Wes has not reviewed
+(a trip of Inverter 4 became ticket 1, 0.13 s after the trip event). It was carried to site2 with `deploy_project` and ran there too (ticket 2). Wes has not reviewed
 the written ADR yet.
 
 ## Context
@@ -51,8 +51,11 @@ under `projects/site/com.inductiveautomation.eventstream/`.
   `priority` is High (written into the script to match the `InverterFault` alarm's priority), and `summary` is a sentence.
 - **Handlers:** a Logger that prints the ticket body (kept so a person can see what is sent), then an HTTP handler that POSTs
   that body to `http://cmms:8000/tickets` over HTTP/1.1 with `Content-Type: application/json`.
-- **Failure strategy:** both handlers are still on ABORT (the default, with no retry policy). Choosing retry is open: the CMMS
-  ignores duplicates, so a retry is safe.
+- **Failure strategy:** the Logger stays on ABORT. The HTTP handler is on RETRY, Fixed, 60 tries, a Retry Delay of 1000, and
+  Retry Failure ABORT. A retry is safe because the CMMS ignores duplicates. Fixed and not Exponential, because Max Delay accepts
+  at most 1000 ms, so an exponential wait could never exceed a second. The Retry Delay field is labeled seconds but behaved as
+  milliseconds (finding 79). Tested by stopping the CMMS for about 20 s: the ticket arrived once, 28 s after the fault, still
+  carrying the true fault start time.
 
 ## Consequences
 
@@ -68,6 +71,9 @@ under `projects/site/com.inductiveautomation.eventstream/`.
   event is dropped and counted in the stage's error list. A configuration error in a handler stops the whole stream (FAULTED),
   and events that happen while it is stopped are not replayed (finding 77). Anything that monitors this stream must read the
   stage error counts and the stream state, not only whether it is running.
+- Retries wait in the gateway's memory. A CMMS outage longer than the retry window, or a gateway restart during it, still loses
+  the ticket (untested for the restart). When the retries run out the handler's Retry Failure is ABORT, which should run the
+  stream's Error Handler stage, still empty; a durable fallback (saving the failed ticket to a table to resend) would go there.
 - Starting or saving the stream fires every matching tag once, so a fault that is already active when the stream starts gets
   a ticket, keyed by the tag's timestamp. Whether the timestamp survives a gateway restart is untested.
 - The stream is carried to the repo the way the pipeline was (ADR 0018, finding 74), and to site2 with `deploy_project`.

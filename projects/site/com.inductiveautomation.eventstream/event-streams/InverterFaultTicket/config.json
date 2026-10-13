@@ -65,8 +65,15 @@
         }
       },
       "failureStrategy": {
-        "type": "ABORT",
-        "retryPolicy": null
+        "type": "RETRY",
+        "retryPolicy": {
+          "type": "FIXED",
+          "retryCount": 60,
+          "delayMs": 1000,
+          "maxDelayMs": 1000,
+          "multiplier": 2,
+          "abort": true
+        }
       }
     }
   ],
