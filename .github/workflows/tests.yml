@@ -1,0 +1,65 @@
+# Continuous integration: for every push to main and every pull request, GitHub starts a clean computer, copies the repo
+# onto it, and runs the three test suites. The computer has no .venv and no .env, so a test that only passes because of
+# something on one PC fails here. Nothing in these jobs touches a gateway; all three suites run without Ignition.
+#
+# Python 3.14 is what the containers (sim/Dockerfile, cmms/Dockerfile) and the PC run, so it is what the tests run on.
+# Each action is pinned to a full commit, not to a tag: a tag can be moved later, a commit cannot. The version is in the
+# comment after each one. Both were published more than 14 days before they were pinned (2026-10-14), like the Python
+# packages in the requirements files.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The jobs only read the repo. This removes every other permission the automatic token would have.
+permissions:
+  contents: read
+
+jobs:
+  sim:
+    # The simulator. asyncua (pinned in sim/requirements.txt) is installed so the 3 OPC UA tests run too.
+    name: simulator tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - run: pip install -r sim/requirements.txt
+      - run: python -m unittest discover -s sim/tests -t .
+
+  generator:
+    # The points-list and REST tooling. Standard library only, so there is nothing to install. These tests also check that
+    # the points lists, docker-compose.yml and .env.example agree.
+    name: generator tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - run: python -m unittest discover -s generator/tests -t .
+
+  cmms:
+    # The mock maintenance system. Its pinned requirements are installed so the 5 web-service tests, which need FastAPI and
+    # are skipped on a PC without it, run here.
+    name: cmms tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - run: pip install -r cmms/requirements.txt
+      - run: python -m unittest discover -s cmms/tests -t .
