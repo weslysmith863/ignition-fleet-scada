@@ -12,8 +12,8 @@ every layer and direct an agent to rebuild the system.
 2. Run the cold-start checklist (section 10 of that page) before touching gateways. It confirms the 13 containers (hub,
    site1, site2, postgres, cmms, sim, sim2, and oem1 to oem6) are healthy; Wes types the compose commands. Start
    everything with `docker.exe compose up -d --build` (the `SITE2_*` values must be in `.env`; see the Site 2 gotcha).
-3. Check `docs/adr/` (decisions), `docs/layer-cards/` (layer explanations), and `docs/spikes/` (evidence) before
-   proposing a design; the question may already be decided.
+3. Check `docs/adr/` (decisions), `docs/layer-cards/` (layer explanations), `docs/spikes/` (evidence), and
+   `docs/commissioning/` (acceptance tests) before proposing a design; the question may already be decided.
 
 ## Working agreement
 - **Teach-back loop.** Write the Layer Card, let Wes hand-build the first instance of each Ignition pattern in

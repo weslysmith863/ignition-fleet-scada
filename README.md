@@ -45,7 +45,8 @@ inverter trip, runs end to end: alarm, escalation, repair ticket, downtime recor
   detail page. `core` holds the shared views.
 - **History and SQL**: SQL Historian on PostgreSQL, and five numbered SQL files in `sql/` (applied with
   `python -m generator.sqlfiles --apply`).
-- **Documentation**: 21 architecture decision records, five layer cards, a domain primer, and findings logs of what the
+- **Documentation**: 21 architecture decision records, five layer cards, a domain primer, a factory acceptance test plan
+  (`docs/commissioning/`), and findings logs of what the
   experiments showed, including the mistakes.
 - **Tests**: 444 automated tests (156 simulator, 265 generator and tooling, 23 mock CMMS), standard library only. The five CMMS
   web-service tests and the three OPC UA simulator tests need extra packages and are skipped without them.
