@@ -2,8 +2,7 @@
 
 Status: Accepted (2026-10-13). Wes approved the recommendations below. The container is built and tested, and Wes hand-built the
 Event Stream that feeds it in Designer (the section "The Event Stream as built" below); it ran end to end on site1 on 2026-10-13
-(a trip of Inverter 4 became ticket 1, 0.13 s after the trip event). It was carried to site2 with `deploy_project` and ran there too (ticket 2). Wes has not reviewed
-the written ADR yet.
+(a trip of Inverter 4 became ticket 1, 0.13 s after the trip event). It was carried to site2 with `deploy_project` and ran there too (ticket 2). Wes approved its decisions on 2026-10-14 from a one-line summary of each; he has not read the full text.
 
 ## Context
 

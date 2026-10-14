@@ -1,7 +1,7 @@
 # ADR 0016: The battery: size, behavior, registers, and control
 
 Status: Accepted (2026-10-07) as the working details of ADR 0014 decision 8. Wes approved decisions 1 to 6 as recommended in
-the design batch on 2026-10-07 and agreed to decision 7 in the same session. Wes has not reviewed the written ADR yet.
+the design batch on 2026-10-07 and agreed to decision 7 in the same session. Wes approved its decisions on 2026-10-14 from a one-line summary of each; he has not read the full text.
 
 ## Context
 

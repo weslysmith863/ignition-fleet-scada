@@ -19,10 +19,10 @@ changes, add a new ADR that supersedes the old one.
 | [0012](0012-phase1-site-views-as-project-files.md) | Site 1 views are project files in the repo, deployed through the REST API | Accepted (no login, dev only) |
 | [0013](0013-phase1-simulator-as-a-container.md) | The simulator runs as a Compose service named sim | Accepted |
 | [0014](0014-phase2-fleet-shape-simulators-oem-reads-inheritance-battery.md) | Phase 2 fleet shape, simulators, OEM reads, project inheritance, and battery scope | Accepted |
-| [0015](0015-phase2-oem-sites-names-placement-and-nameplate.md) | OEM-integrated sites: names, where their objects live, and the nameplate tag | Accepted (not yet reviewed by Wes) |
-| [0016](0016-phase2-battery-size-behavior-registers-and-control.md) | The battery: size, behavior, registers, and control | Accepted (not yet reviewed by Wes) |
-| [0017](0017-phase3-fault-injection-by-plant-controller-node.md) | Fault injection by a plant controller node | Accepted (not yet reviewed by Wes) |
-| [0018](0018-phase3-unacknowledged-alarm-escalation-pipeline.md) | Escalating an unacknowledged alarm with an alarm pipeline | Accepted (not yet reviewed by Wes) |
-| [0019](0019-phase3-mock-cmms-and-repair-tickets.md) | A mock CMMS that receives repair tickets from Event Streams | Accepted (not yet reviewed by Wes) |
-| [0020](0020-phase3-downtime-reasons-and-the-downtime-view.md) | Downtime reason codes and the downtime view | Accepted (not yet reviewed by Wes) |
-| [0021](0021-phase3-site-kpis-and-availability.md) | Site KPIs and a time-based availability | Accepted (not yet reviewed by Wes) |
+| [0015](0015-phase2-oem-sites-names-placement-and-nameplate.md) | OEM-integrated sites: names, where their objects live, and the nameplate tag | Accepted (approved by Wes 2026-10-14) |
+| [0016](0016-phase2-battery-size-behavior-registers-and-control.md) | The battery: size, behavior, registers, and control | Accepted (approved by Wes 2026-10-14) |
+| [0017](0017-phase3-fault-injection-by-plant-controller-node.md) | Fault injection by a plant controller node | Accepted (approved by Wes 2026-10-14) |
+| [0018](0018-phase3-unacknowledged-alarm-escalation-pipeline.md) | Escalating an unacknowledged alarm with an alarm pipeline | Accepted (approved by Wes 2026-10-14) |
+| [0019](0019-phase3-mock-cmms-and-repair-tickets.md) | A mock CMMS that receives repair tickets from Event Streams | Accepted (approved by Wes 2026-10-14) |
+| [0020](0020-phase3-downtime-reasons-and-the-downtime-view.md) | Downtime reason codes and the downtime view | Accepted (approved by Wes 2026-10-14) |
+| [0021](0021-phase3-site-kpis-and-availability.md) | Site KPIs and a time-based availability | Accepted (approved by Wes 2026-10-14) |

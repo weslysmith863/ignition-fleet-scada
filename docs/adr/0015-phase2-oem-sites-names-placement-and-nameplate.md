@@ -1,6 +1,6 @@
 # ADR 0015: OEM-integrated sites: names, where their objects live, and the nameplate tag
 
-Status: Accepted (2026-10-06) as the working details of ADR 0014 decisions 5 and 6. Wes has not reviewed it yet.
+Status: Accepted (2026-10-06) as the working details of ADR 0014 decisions 5 and 6. Wes approved its decisions on 2026-10-14 from a one-line summary of each; he has not read the full text.
 
 ## Context
 

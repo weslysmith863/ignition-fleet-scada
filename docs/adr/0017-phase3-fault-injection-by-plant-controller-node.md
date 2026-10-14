@@ -1,7 +1,7 @@
 # ADR 0017: Fault injection by a plant controller node
 
 Status: Accepted (2026-10-12) as the first piece of Phase 3's fault scenarios. Wes chose buttons he triggers himself over a YAML
-timeline, and approved starting with one fault, the inverter trip. Wes has not reviewed the written ADR yet.
+timeline, and approved starting with one fault, the inverter trip. Wes approved its decisions on 2026-10-14 from a one-line summary of each; he has not read the full text.
 
 ## Context
 

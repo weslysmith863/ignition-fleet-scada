@@ -1,7 +1,7 @@
 # ADR 0021: Site KPIs and a time-based availability
 
 Status: Accepted (2026-10-13). Wes approved all four decisions below ("recs good"). The agent wrote the SQL and the page, as
-Wes asked for the SQL (ADR 0020). Wes has not reviewed the written ADR yet.
+Wes asked for the SQL (ADR 0020). Wes approved its decisions on 2026-10-14 from a one-line summary of each; he has not read the full text.
 
 ## Context
 

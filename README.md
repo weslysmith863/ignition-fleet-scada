@@ -10,102 +10,124 @@ underneath, and everything stored as files in Git and deployed through the gatew
 
 ## Status
 
-**Phase 1 of 4 (one site end to end) is built and working.** One simulated 5 MW solar plant runs end to end: a Python
-simulator, Ignition tags and templates, history in PostgreSQL, and browser screens.
+**Phases 0 to 3 of 4 are built and working.** Eight simulated sites run from their points lists, and one kind of fault, an
+inverter trip, runs end to end: alarm, escalation, repair ticket, downtime record, and reliability numbers.
 
 | Phase | Goal | State |
 |---|---|---|
 | 0 | Spikes and skeleton: hub reads a tag from a site gateway | Done |
-| 1 | One site end to end | **Done** |
-| 2 | Fleet and templating: 8 sites from one points list, a battery model | **In progress**: eight sites live (two site gateways, six OEM-integrated), fleet screen; battery model next |
-| 3 | Operations layer: alarms, downtime, Event Streams, fault scenarios | Planned |
+| 1 | One site end to end | Done |
+| 2 | Fleet and templating: 8 sites from points lists, a battery model | Done |
+| 3 | Operations layer: alarms, downtime, Event Streams, fault scenarios | Built for one fault type (the inverter trip); being consolidated, with no new fault types for now |
 | 4 | Admin tooling, CI, commissioning docs, showcase | Planned |
 
 ## What works today
 
 - **Simulator** (`sim/`, Python 3): sun position, seeded clouds, module temperature, inverter clipping, a plant-level power
-  limit, and a revenue meter. It serves SunSpec Modbus TCP for four inverters, a weather station, and a meter (port 15020), and
-  an OPC UA plant controller (port 14840), from one process and one clock. Runs as the `sim` container.
-- **Ignition tag model**: four UDT templates (Inverter, Weather, Meter, PlantController), with Modbus scale factors handled by
-  expressions and the OPC UA values arriving in engineering units.
-- **Points-list generator** (`generator/`, standard library only): reads `points/site1.csv` and creates the Modbus devices, the
-  OPC UA plant-controller connection, and the UDT instances through the REST API. It never overwrites, reports drift, and
-  creates devices and connections before instances. It also imports the saved UDT definitions, creates the PostgreSQL
-  connection (encrypted password) and the SQL Historian provider, deploys projects, and retargets device hosts.
-- **History**: SQL Historian on PostgreSQL, with sampling choices recorded in an ADR.
-- **Screens** (`projects/site/`): Overview, Trends (a chart that reads the historian), and a Controller page that writes the
-  plant limit and shows curtailment. They are Perspective project files deployed with one command, and the same files serve
-  every site gateway (the inverter list comes from the tags).
-- **Documentation**: 14 architecture decision records, four layer cards, a domain primer, and findings logs of what the
+  limit, a revenue meter, a 2.5 MW / 10 MWh battery on site 1, and fault injection (an inverter trip ordered over OPC UA). It
+  serves SunSpec Modbus TCP and an OPC UA plant controller from one process and one clock, as the `sim` and `sim2` containers
+  (plus six more for the OEM-integrated sites).
+- **Ignition tag model**: five UDT templates (Inverter, Weather, Meter, PlantController, Battery), with Modbus scale factors
+  handled by expressions and the OPC UA values arriving in engineering units.
+- **Fleet**: two site gateways and a hub. Eight sites are live from their points lists: two plants behind their own gateways
+  and six OEM-integrated plants read by the hub directly, all visible on one fleet screen through remote and local tag providers.
+- **Points-list generator** (`generator/`, standard library only): creates the Modbus devices, the OPC UA connection and the UDT
+  instances, imports the saved UDT definitions, creates the PostgreSQL connection, the SQL Historian and the alarm journal,
+  creates the hub's tag providers, deploys projects, retargets device hosts, and applies the SQL files. Each tool is a dry run
+  or reports before it changes anything, and none overwrites hand-built objects.
+- **The operations chain** (Phase 3, `docs/layer-cards/04-operations-layer.md`): a trip raises the `InverterFault` alarm, which
+  is journaled in PostgreSQL; an alarm pipeline escalates it if nobody acknowledges within two minutes; an Event Stream posts one
+  repair ticket per fault, with retry, to a mock CMMS container (`cmms/`, FastAPI and SQLite); an operator gives each fault a
+  reason on a Downtime page; SQL views build the downtime records and per-site KPIs (fault events, mean time to acknowledge,
+  mean time active, a time-based availability), shown on the hub's fleet screen.
+- **Screens** (`projects/`): Perspective project files deployed with one command. `site` (the same files on every site gateway):
+  Overview, Trends, Controller, Faults, Downtime. `fleet` (on the hub): the fleet overview with a Reliability section and a site
+  detail page. `core` holds the shared views.
+- **History and SQL**: SQL Historian on PostgreSQL, and five numbered SQL files in `sql/` (applied with
+  `python -m generator.sqlfiles --apply`).
+- **Documentation**: 21 architecture decision records, five layer cards, a domain primer, and findings logs of what the
   experiments showed, including the mistakes.
-- **Tests**: 310 automated tests (98 simulator, 212 generator and tooling), standard library only.
+- **Tests**: 424 automated tests (156 simulator, 245 generator and tooling, 23 mock CMMS), standard library only. The five CMMS
+  web-service tests and the three OPC UA simulator tests need extra packages and are skipped without them.
 
 ## What it demonstrates
 
 Hub and site gateway architecture, UDT and template-driven tag models, Modbus TCP and OPC UA connectivity against a realistic
-simulator, solar domain concepts (clipping versus curtailment, plane-of-array irradiance, point of interconnection), SQL
-historian, secrets kept out of Git, Git-native project files, and gateway administration through the REST API.
+simulator, solar and BESS domain concepts (clipping versus curtailment, point of interconnection, state of charge, availability),
+alarm journals, pipelines and escalation, Event Streams with retry into an external system, downtime and KPI modeling in SQL,
+secrets kept out of Git, Git-native project files, and gateway administration through the REST API. Where something is
+simulated or simplified, the docs say so.
 
 ## Quick start
 
 You need Docker Desktop, Python 3, and an [Ignition Maker Edition](https://inductiveautomation.com/ignition/maker-edition)
-account with licenses for the gateways (one key and one activation token each).
+account with licenses for the gateways (one key and one activation token each, three gateways).
 
 ```
 copy .env.example .env        # then fill in the values; .env is gitignored and never committed
-docker compose up -d --build  # hub, site1, postgres, and the sim container
+docker compose up -d --build  # hub, site1, site2, postgres, cmms, the simulators
 ```
 
 Then there is first-time setup on a fresh gateway. Only the first step is manual; each of the others is a tool that reports
-before it changes anything. They rebuilt site2 from an empty gateway in this order on 2026-10-06 (Phase 2 finding 51):
+before it changes anything (the full order, and the gotchas, are in `CLAUDE.md` and the findings):
 
 1. In each gateway's web page, create a security level `API_RW`, allow it under *Gateway Write Permissions*, and create an API
-   key that holds it. Put the tokens in `.env` (`HUB_API_TOKEN`, `SITE1_API_TOKEN`). See `docs/adr/0005`.
-2. `python -m generator.connections site1` creates the PostgreSQL connection `fleetdb` with an encrypted password, then the SQL
-   Historian provider `Historian` on it (add `--dry-run` to only report).
-3. `python -m generator.import_types site1 --apply` creates the four UDT definitions from `gateway/site1/udt-types.json`
+   key that holds it. Put the tokens in `.env` (`HUB_API_TOKEN`, `SITE1_API_TOKEN`, `SITE2_API_TOKEN`). See `docs/adr/0005`.
+2. `python -m generator.connections site1` creates the PostgreSQL connection `fleetdb` with an encrypted password, the SQL
+   Historian provider `Historian`, and the alarm journal (add `--dry-run` to only report). Do the same for `site2` and `hub`
+   as needed.
+3. `python -m generator.import_types site1 --apply` creates the UDT definitions from `gateway/site1/udt-types.json`
    (without `--apply` it only reports).
-4. `python -m generator.apply points/site1.csv` creates the Modbus devices, the OPC UA connection `PlantController` (to
-   `opc.tcp://sim:14840/fleet-scada/sim`, security None), and the Inverter, Weather, Meter, and PlantController instances.
-5. `python -m generator.deploy_all` deploys the screens: `core` and `site` to each site gateway, `core` and `fleet` to the hub.
-   Then open `http://localhost:8091/data/perspective/client/site` (and `:8092`) for a site, or
-   `http://localhost:8090/data/perspective/client/fleet` for the fleet overview.
+4. `python -m generator.apply points/site1.csv` creates the Modbus devices, the OPC UA connection `PlantController`, and the
+   UDT instances; `points/site2.csv` and the OEM files work the same way.
+5. `python -m generator.sqlfiles --apply` creates the notifications, downtime and KPI tables and views (run it after the alarm
+   journals exist, because the downtime view reads them).
+6. `python -m generator.deploy_all` deploys the screens: `core` and `site` to each site gateway, `core` and `fleet` to the hub.
+   The alarm pipeline and the Event Stream are resources of the `site` project, so they deploy with it. Then open
+   `http://localhost:8091/data/perspective/client/site` (and `:8092`) for a site, or
+   `http://localhost:8090/data/perspective/client/fleet` for the fleet overview. The mock CMMS is at `http://localhost:8100`.
 
 `SIM_START` in `.env` pins the simulated start time (for example midday, so the plant is producing); empty means the real clock.
 
-Run the tests with `python -m unittest discover -s sim/tests -t .` and `python -m unittest discover -s generator/tests -t .`.
-The simulator's OPC UA tests need `asyncua` (`sim/requirements.txt`) and are skipped without it.
+Run the tests with `python -m unittest discover -s sim/tests -t .`, `python -m unittest discover -s generator/tests -t .`, and
+`python -m unittest discover -s cmms/tests -t .`.
 
 ## Known limits and dev-only choices
 
 These are deliberate for a local, single-machine project, and each is written down so it is not mistaken for a design.
 
 - **No security on local links**: plaintext Gateway Network and API key transport (ADR 0004), an OPC UA server with no security
-  (ADR 0010), and Perspective screens with no login that can write the plant limit (ADR 0012). The generator also gives a new
-  OPC UA connection the default password for the gateway's own OPC client key store (`password`, Phase 2 finding 45), a dev
-  default for a self-generated certificate. All ports are bound to the loopback interface. None of this is suitable for a
-  shared deployment.
+  (ADR 0010), and Perspective screens and a mock CMMS with no login (ADR 0012, ADR 0019). A fault button writes straight to the
+  simulator. The generator also gives a new OPC UA connection the default password for the gateway's own OPC client key store
+  (Phase 2 finding 45), a dev default for a self-generated certificate. All ports are bound to the loopback interface. None of
+  this is suitable for a shared deployment.
 - **Open tag provider permissions**: the hub's local tag providers require no security level (finding 58), so the generator's API
-  key can import tags. A real deployment would restrict read, write, and edit by role., approximated, or not modeled (Layer Card 1). Fixed-tilt panels, no
-  trackers, no reactive power, no wind.
+  key can import tags. A real deployment would restrict read, write, and edit by role.
+- **The simulator is a model**: what is modeled with sources, what is our own rule, and what is approximated is written down in
+  Layer Card 1. Fixed-tilt panels, no trackers, no reactive power, no wind.
+- **One fault type, and a simplified availability**: only an inverter trip is simulated. Availability is time-based over 24
+  hours, counts only reasons flagged as counting against it, and ignores daylight and partial losses (ADR 0021).
+- **No durable queue for tickets and escalations**: retries and pending escalations wait in the gateway's memory, so a long
+  outage or a gateway restart can lose one (ADR 0018, ADR 0019).
 - **Manual steps**: the license token, the `API_RW` security level, the write permission, and the API key. Everything else was
   rebuilt from an empty gateway by the tools (finding 51).
-- **Alarms and the battery are later**: the battery model is the rest of Phase 2, and alarms, downtime, and fault scenarios are Phase 3.
 
 ## Repo layout
 
 ```
-sim/                 the plant simulator: physics, Modbus server, OPC UA plant controller, Dockerfile
-generator/           points-list generator and the REST API tooling (apply, connections, import_types, providers, deploy_project, retarget)
-points/              the points list (one row per device); the source of truth for devices and instances
-projects/site/       the Perspective project (views as files), deployed through the API
+sim/                 the plant simulator: physics, Modbus server, OPC UA plant controller, fault injection, Dockerfile
+generator/           points-list generator and the REST and SQL tooling (apply, connections, import_types, providers, deploy_project, sqlfiles, ...)
+points/              the points lists (one row per device); the source of truth for devices and instances
+projects/            the Perspective projects (views, the alarm pipeline and the Event Stream as files): core, site, fleet
+cmms/                the mock maintenance system (FastAPI, SQLite) the Event Stream posts tickets to, with its Dockerfile
+sql/                 numbered SQL files: notifications, downtime reasons and view, sites, site KPIs
 gateway/             exported gateway state kept for reference (UDT definitions)
 docs/layer-cards/    one card per layer: why it exists, what it owns, how it talks to its neighbors
 docs/adr/            architecture decision records
 docs/spikes/         what each time-boxed experiment found
-docs/domain/         a solar plant primer and glossary
-spikes/phase0/       a throwaway sample project exported from a gateway (reference only)
-docker-compose.yml   hub gateway, site1 gateway, PostgreSQL, and the simulator
+docs/domain/         a solar plant primer, a battery primer, and a glossary
+spikes/              throwaway experiment files (reference only)
+docker-compose.yml   hub, site1, site2, PostgreSQL, cmms, two plant simulators, and six OEM simulators
 CLAUDE.md            the working rules for the AI coding agent used on this project
 ```
 
@@ -113,10 +135,12 @@ CLAUDE.md            the working rules for the AI coding agent used on this proj
 
 - [Layer Card 0: platform skeleton](docs/layer-cards/00-platform-skeleton.md)
 - [Layer Card 1: field devices and the simulator](docs/layer-cards/01-field-devices-and-simulator.md)
-- [Layer Card 2: Site 1 views](docs/layer-cards/02-site-views.md)
+- [Layer Card 2: site views](docs/layer-cards/02-site-views.md)
+- [Layer Card 3: fleet and templating](docs/layer-cards/03-fleet-and-templating.md)
+- [Layer Card 4: the operations layer](docs/layer-cards/04-operations-layer.md)
 - [ADR index](docs/adr/README.md)
-- [Findings from the experiments](docs/spikes/phase1-findings.md)
-- [Solar plant primer](docs/domain/01-solar-plant-primer.md)
+- Findings from the experiments: [Phase 0](docs/spikes/phase0-findings.md), [Phase 1](docs/spikes/phase1-findings.md), [Phases 2 and 3](docs/spikes/phase2-findings.md)
+- [Solar plant primer](docs/domain/01-solar-plant-primer.md), [battery primer](docs/domain/02-battery-primer.md), [glossary](docs/domain/glossary.md)
 
 ## License
 

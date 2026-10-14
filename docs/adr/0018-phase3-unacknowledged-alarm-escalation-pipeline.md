@@ -1,7 +1,6 @@
 # ADR 0018: Escalating an unacknowledged alarm with an alarm pipeline
 
-Status: Accepted (2026-10-13). Wes approved the recommendations below and hand-built the pipeline in Designer. Wes has not
-reviewed the written ADR yet.
+Status: Accepted (2026-10-13). Wes approved the recommendations below and hand-built the pipeline in Designer. Wes approved its decisions on 2026-10-14 from a one-line summary of each; he has not read the full text.
 
 ## Context
 

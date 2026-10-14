@@ -2,7 +2,7 @@
 
 Status: Accepted (2026-10-13). Wes approved decisions 1 to 3 below ("recs good"). Wes first planned to write the view himself, then
 decided the same day that the SQL learning was too much to take on right now and asked the agent to write it; the agent did, and
-explained it step by step in the SQL file. Wes has not reviewed the written ADR yet.
+explained it step by step in the SQL file. Wes approved its decisions on 2026-10-14 from a one-line summary of each; he has not read the full text.
 
 ## Context
 
