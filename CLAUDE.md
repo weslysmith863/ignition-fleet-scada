@@ -97,7 +97,11 @@ explainable.
   `python -m generator.deploy_all [--overwrite | --recreate] [--dry-run]` deploys `core` + `fleet` to the hub and `core` +
   `site` to every site gateway, parent first;
   `python -m generator.retarget site1 points/site1.csv [--apply]` moves existing devices and the OPC connection to the
-  points list's host. Only the `API_RW` level and API key are still manual (the README Quick Start). The steps rebuilt
+  points list's host;
+  `python -m generator.status [--only GATEWAY]` is read-only: it asks each gateway whether it answers with its own key, reports
+  its own name, lists no problems, and has its projects (`deploy_all.projects_for`) enabled, then asks the mock CMMS for
+  `/health`; exit code 0 means every check passed (`check_projects` in it was written by Wes). Only the `API_RW` level and API
+  key are still manual (the README Quick Start). The steps rebuilt
   site2 from an empty gateway in sequence on 2026-10-06 (finding 51).
 - `projects/`: three Perspective projects written as files by the agent. `core` (inheritable) holds the shared views (Kpi,
   InverterCard); `site` (parent `core`) runs on every site gateway; `fleet` (parent `core`) runs on the hub and shows every

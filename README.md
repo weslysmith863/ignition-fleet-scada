@@ -47,7 +47,7 @@ inverter trip, runs end to end: alarm, escalation, repair ticket, downtime recor
   `python -m generator.sqlfiles --apply`).
 - **Documentation**: 21 architecture decision records, five layer cards, a domain primer, and findings logs of what the
   experiments showed, including the mistakes.
-- **Tests**: 424 automated tests (156 simulator, 245 generator and tooling, 23 mock CMMS), standard library only. The five CMMS
+- **Tests**: 444 automated tests (156 simulator, 265 generator and tooling, 23 mock CMMS), standard library only. The five CMMS
   web-service tests and the three OPC UA simulator tests need extra packages and are skipped without them.
 
 ## What it demonstrates
@@ -86,6 +86,10 @@ before it changes anything (the full order, and the gotchas, are in `CLAUDE.md` 
    The alarm pipeline and the Event Stream are resources of the `site` project, so they deploy with it. Then open
    `http://localhost:8091/data/perspective/client/site` (and `:8092`) for a site, or
    `http://localhost:8090/data/perspective/client/fleet` for the fleet overview. The mock CMMS is at `http://localhost:8100`.
+7. `python -m generator.status` asks every gateway, without changing anything, whether it answers with its own API key, reports
+   its own name, lists no problems, and has its projects enabled, and asks the mock CMMS for `/health`. It exits with 0 when every
+   check passes and 1 otherwise. (The REST API cannot read tag values, so it says the gateways are up and configured, not that
+   the plant is producing.)
 
 `SIM_START` in `.env` pins the simulated start time (for example midday, so the plant is producing); empty means the real clock.
 

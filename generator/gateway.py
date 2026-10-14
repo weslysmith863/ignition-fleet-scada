@@ -121,6 +121,20 @@ class RestGateway:
         """The project's details, or None when it does not exist."""
         return self._call("GET", "/projects/find/%s" % urllib.parse.quote(name), allow_404=True)
 
+    def project_list(self):
+        """Every project on the gateway as [name, enabled] pairs, for example [["core", True], ["site", True]]. The gateway
+        answers with a fuller record for each project inside {"items": [...]}; this keeps the two fields the checks use."""
+        answer = self._call("GET", "/projects/list")
+        return [[project["name"], project["enabled"]] for project in answer["items"]]
+
+    def reported_name(self):
+        """The name the gateway gives itself (its System Name). The call needs the API key, so an answer also proves the key works."""
+        return self._call("GET", "/overview/name")["gatewayName"]
+
+    def problems(self):
+        """The problems the gateway lists on its own overview; an empty list when it has none."""
+        return self._call("GET", "/overview/problems")["items"]
+
     def import_project(self, name, zip_bytes, overwrite=False):
         """Import a project zip (project.json at its root). Without overwrite, an existing project of that name is refused."""
         query = urllib.parse.urlencode({"overwrite": "true"}) if overwrite else ""
