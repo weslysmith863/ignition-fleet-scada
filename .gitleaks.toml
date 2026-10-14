@@ -16,3 +16,14 @@ description = "Ignition gateway API token, written name:secret"
 regex = '''[A-Za-z0-9_-]{4,}:([A-Za-z0-9_-]{40,})'''
 secretGroup = 1
 entropy = 4.2
+
+[[rules]]
+id = "ignition-activation-token"
+description = "Ignition license activation token, one long string that starts with eyJ"
+# Measured on the real ones: a single unbroken string of 2,248 letters, digits, hyphens and underscores that starts with
+# eyJ (the encoding of a JSON header) and has no dots. The default rules found none of 80 planted tokens of this shape;
+# a guess is that their generic rule stops reading a value at 150 characters. The same idea as the "jwe" check in
+# scripts/check_secrets.py, but 200 characters in a row are required, so an ordinary short JWT header is left alone, and
+# 4.5 or more bits per character, so a long run of one letter is not flagged (the real ones measure 5.6).
+regex = '''eyJ[A-Za-z0-9_-]{200,}'''
+entropy = 4.5
