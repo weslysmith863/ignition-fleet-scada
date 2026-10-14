@@ -1,0 +1,196 @@
+{
+  "custom": {},
+  "params": {
+    "site": "",
+    "events": "",
+    "acknowledge": "",
+    "active": "",
+    "availability": ""
+  },
+  "propConfig": {
+    "params.site": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.events": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.acknowledge": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.active": {
+      "paramDirection": "input",
+      "persistent": true
+    },
+    "params.availability": {
+      "paramDirection": "input",
+      "persistent": true
+    }
+  },
+  "props": {
+    "defaultSize": {
+      "width": 1000,
+      "height": 44
+    }
+  },
+  "root": {
+    "type": "ia.container.flex",
+    "meta": {
+      "name": "root"
+    },
+    "props": {
+      "direction": "row",
+      "alignItems": "center",
+      "style": {
+        "backgroundColor": "#ffffff",
+        "border": "1px solid #d7dde3",
+        "borderRadius": "8px",
+        "gap": "8px",
+        "padding": "8px 12px"
+      }
+    },
+    "children": [
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Site"
+        },
+        "position": {
+          "basis": "110px",
+          "shrink": 0
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "14px",
+            "fontWeight": "600"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.site"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Events"
+        },
+        "position": {
+          "basis": "110px",
+          "shrink": 0
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "14px",
+            "fontWeight": "400"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.events"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Acknowledge"
+        },
+        "position": {
+          "basis": "190px",
+          "shrink": 0
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "14px",
+            "fontWeight": "400"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.acknowledge"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Active"
+        },
+        "position": {
+          "basis": "170px",
+          "shrink": 0
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "14px",
+            "fontWeight": "400"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.active"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "ia.display.label",
+        "meta": {
+          "name": "Availability"
+        },
+        "position": {
+          "grow": 1
+        },
+        "props": {
+          "text": "",
+          "style": {
+            "color": "#1b2733",
+            "fontSize": "14px",
+            "fontWeight": "600"
+          }
+        },
+        "propConfig": {
+          "props.text": {
+            "binding": {
+              "type": "property",
+              "config": {
+                "path": "view.params.availability"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

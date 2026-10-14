@@ -227,6 +227,185 @@
           },
           {
             "meta": {
+              "name": "ReliabilityTitle"
+            },
+            "props": {
+              "style": {
+                "color": "#1b2733",
+                "fontSize": "16px",
+                "fontWeight": "600"
+              },
+              "text": "Reliability, last 24 hours"
+            },
+            "type": "ia.display.label"
+          },
+          {
+            "children": [
+              {
+                "meta": {
+                  "name": "SiteTitle"
+                },
+                "position": {
+                  "basis": "110px",
+                  "shrink": 0
+                },
+                "props": {
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "letterSpacing": "0.04em",
+                    "textTransform": "uppercase"
+                  },
+                  "text": "Site"
+                },
+                "type": "ia.display.label"
+              },
+              {
+                "meta": {
+                  "name": "EventsTitle"
+                },
+                "position": {
+                  "basis": "110px",
+                  "shrink": 0
+                },
+                "props": {
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "letterSpacing": "0.04em",
+                    "textTransform": "uppercase"
+                  },
+                  "text": "Fault events"
+                },
+                "type": "ia.display.label"
+              },
+              {
+                "meta": {
+                  "name": "AcknowledgeTitle"
+                },
+                "position": {
+                  "basis": "190px",
+                  "shrink": 0
+                },
+                "props": {
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "letterSpacing": "0.04em",
+                    "textTransform": "uppercase"
+                  },
+                  "text": "Mean time to acknowledge"
+                },
+                "type": "ia.display.label"
+              },
+              {
+                "meta": {
+                  "name": "ActiveTitle"
+                },
+                "position": {
+                  "basis": "170px",
+                  "shrink": 0
+                },
+                "props": {
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "letterSpacing": "0.04em",
+                    "textTransform": "uppercase"
+                  },
+                  "text": "Mean time active"
+                },
+                "type": "ia.display.label"
+              },
+              {
+                "meta": {
+                  "name": "AvailabilityTitle"
+                },
+                "position": {
+                  "grow": 1
+                },
+                "props": {
+                  "style": {
+                    "color": "#5f6b76",
+                    "fontSize": "12px",
+                    "letterSpacing": "0.04em",
+                    "textTransform": "uppercase"
+                  },
+                  "text": "Availability"
+                },
+                "type": "ia.display.label"
+              }
+            ],
+            "meta": {
+              "name": "ReliabilityColumns"
+            },
+            "position": {
+              "shrink": 0
+            },
+            "props": {
+              "alignItems": "center",
+              "direction": "row",
+              "style": {
+                "gap": "8px",
+                "padding": "0 13px"
+              }
+            },
+            "type": "ia.container.flex"
+          },
+          {
+            "meta": {
+              "name": "ReliabilityRows"
+            },
+            "position": {
+              "shrink": 0
+            },
+            "propConfig": {
+              "props.instances": {
+                "binding": {
+                  "config": {
+                    "expression": "now(30000)"
+                  },
+                  "transforms": [
+                    {
+                      "code": "\tresults = system.tag.browse(\"\").getResults()\n\tnames = sorted([str(r[\"name\"]) for r in results if str(r[\"name\"]) not in (\"System\", \"default\")], key=lambda n: (len(n), n))\n\tkpis = {}\n\tfor r in system.db.runPrepQuery(\"SELECT site, fault_events, mean_time_to_acknowledge_s, mean_time_active_s, availability_percent FROM site_kpis\", [], \"fleetdb\"):\n\t\tkpis[r[\"site\"]] = r\n\tdef span(seconds):\n\t\tif seconds is None:\n\t\t\treturn \"none yet\"\n\t\ts = int(round(seconds))\n\t\tif s < 60:\n\t\t\treturn \"%d s\" % s\n\t\tif s < 3600:\n\t\t\treturn \"%d min %d s\" % (s // 60, s % 60)\n\t\treturn \"%d h %d min\" % (s // 3600, (s % 3600) // 60)\n\trows = []\n\tfor n in names:\n\t\tif n in kpis:\n\t\t\tk = kpis[n]\n\t\t\trows.append({\"site\": n, \"events\": str(k[\"fault_events\"]), \"acknowledge\": span(k[\"mean_time_to_acknowledge_s\"]), \"active\": span(k[\"mean_time_active_s\"]), \"availability\": \"%.2f %%\" % float(k[\"availability_percent\"])})\n\t\telse:\n\t\t\trows.append({\"site\": n, \"events\": \"n/a\", \"acknowledge\": \"n/a\", \"active\": \"n/a\", \"availability\": \"n/a (no alarm data yet)\"})\n\treturn rows",
+                      "type": "script"
+                    }
+                  ],
+                  "type": "expr"
+                }
+              }
+            },
+            "props": {
+              "direction": "column",
+              "elementPosition": {
+                "basis": "auto",
+                "grow": 0,
+                "shrink": 0
+              },
+              "path": "SiteKpiRow",
+              "style": {
+                "gap": "8px"
+              },
+              "useDefaultViewHeight": true,
+              "useDefaultViewWidth": false
+            },
+            "type": "ia.display.flex-repeater"
+          },
+          {
+            "meta": {
+              "name": "ReliabilityNote"
+            },
+            "props": {
+              "style": {
+                "color": "#5f6b76",
+                "fontSize": "12px"
+              },
+              "text": "Last 24 hours. Availability is our own simplification: time-based over all 24 hours, counting only faults whose reason counts against availability (a grid outage or curtailment does not), so a fault with no reason yet counts. Mean time active is how long the alarm stayed active, a stand-in for repair time. A site shows n/a when it has no alarm journal yet (ADR 0021)."
+            },
+            "type": "ia.display.label"
+          },
+          {
+            "meta": {
               "name": "Footnote"
             },
             "props": {
@@ -249,6 +428,7 @@
           "direction": "column",
           "style": {
             "gap": "16px",
+            "overflow": "auto",
             "padding": "20px"
           }
         },

@@ -25,3 +25,4 @@ changes, add a new ADR that supersedes the old one.
 | [0018](0018-phase3-unacknowledged-alarm-escalation-pipeline.md) | Escalating an unacknowledged alarm with an alarm pipeline | Accepted (not yet reviewed by Wes) |
 | [0019](0019-phase3-mock-cmms-and-repair-tickets.md) | A mock CMMS that receives repair tickets from Event Streams | Accepted (not yet reviewed by Wes) |
 | [0020](0020-phase3-downtime-reasons-and-the-downtime-view.md) | Downtime reason codes and the downtime view | Accepted (not yet reviewed by Wes) |
+| [0021](0021-phase3-site-kpis-and-availability.md) | Site KPIs and a time-based availability | Accepted (not yet reviewed by Wes) |
