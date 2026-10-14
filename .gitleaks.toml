@@ -1,0 +1,18 @@
+# Extra rules for the gitleaks secret scan (.github/workflows/secret-scan.yml). Gitleaks loads this file by itself when it
+# scans the repo: it looks for .gitleaks.toml in the folder it scans. useDefault keeps all of gitleaks's own rules; the rules
+# below add what they miss. The pre-commit hook (scripts/check_secrets.py) still checks your own .env values, which CI cannot.
+title = "fleet-scada gitleaks rules"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "ignition-api-token"
+description = "Ignition gateway API token, written name:secret"
+# The same shape as the "token" check in scripts/check_secrets.py: a key name, a colon, then 40 or more letters, digits,
+# hyphens or underscores. The part after the colon must also look random, so harmless lookalikes do not trip it: 4.2 or
+# more bits per character. Measured: the real tokens 4.8 to 5.1 and random 43-character tokens never below 4.3 (20,000
+# tries), against about 3.9 for readable text and at most 4.0 for a sha256 digest (a Docker image pin).
+regex = '''[A-Za-z0-9_-]{4,}:([A-Za-z0-9_-]{40,})'''
+secretGroup = 1
+entropy = 4.2
