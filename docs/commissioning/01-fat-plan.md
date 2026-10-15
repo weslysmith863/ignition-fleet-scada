@@ -45,11 +45,11 @@ offset (five hours in October) and agree to within a second once that is taken i
 | P3 | The three test suites pass here and on a clean machine (CI) | Passed 2026-10-14 (generator 265, simulator 156, cmms 23; CI green on `eb625b0`) |
 | C1 | Each gateway matches its points list (devices, connection, instances): no drift | Passed 2026-10-14 (all eight points lists: every line unchanged) |
 | C2 | A raw register becomes the right engineering value (scale factors) | Not run |
-| B1 | At midday the inverters clip at their rating with no limit active | Not run |
-| B2 | A plant limit curtails the inverters evenly, and releasing it restores them | Not run |
-| A1 | An inverter trip travels end to end: alarm, ticket, escalation, journal, downtime reason, KPIs | Not run |
-| F1 | A ticket survives a short CMMS outage and is created once, with the true start time | Not run |
-| F2 | A stopped OEM-integrated site shows as not reporting and the fleet totals follow | Not run |
+| B1 | At midday the inverters clip at their rating with no limit active | Passed 2026-10-14 (5.00 MW at 896 W/m2, four inverters at 1,250 kW Throttled, no limit active) |
+| B2 | A plant limit curtails the inverters evenly, and releasing it restores them | Passed 2026-10-14 (2.50 MW, each inverter 625 kW, "Yes, curtailing", Curtailed; released: back to 5.00 MW) |
+| A1 | An inverter trip travels end to end: alarm, ticket, escalation, journal, downtime reason, KPIs | Passed 2026-10-14 (one ticket 0.43 s after the fault, one notification at 120.007 s, three journal rows, reason saved, KPIs and the fleet page agree; see the notes under the run log) |
+| F1 | A ticket survives a short CMMS outage and is created once, with the true start time | Passed 2026-10-14 (one ticket, #6, delivered 28.08 s after the fault; its start time matches the journal's Active time within 0.1 s) |
+| F2 | A stopped OEM-integrated site shows as not reporting and the fleet totals follow | Passed 2026-10-14 (7 of 8 reporting, output down 3.11 MW against OEM6's last 3.18 MW, rating unchanged, card "No data", back to 8 of 8 within 22 s of the restart) |
 | S1 | A committed secret would be caught | On record (the gitleaks trials in the commits that added the scan; CI green) |
 | R1 | The whole fleet rebuilds from an empty state with the README steps | Not run |
 
@@ -105,7 +105,9 @@ output?" reads Yes, "Plant status" reads Curtailed; after the limit is switched 
 ## Alarm chain
 
 ### A1: an inverter trip, end to end
-Preconditions: midday, Site 1 healthy (P2 passes). Before you begin, note the number of tickets
+Preconditions: midday, Site 1 healthy (P2 passes), and no old unacknowledged alarm in the Alarms table (a fault that has cleared
+but was never acknowledged stays listed, is acknowledged by the same action as the new one, and then dominates the mean time to
+acknowledge; see the notes under the run log). Before you begin, note the number of tickets
 (`(Invoke-RestMethod http://localhost:8100/tickets).Count`), the newest notification id and the Site 1 `fault_events` value, using:
 ```
 docker.exe compose exec -T postgres psql -U fleet -d fleet -c "SELECT id, created_at, site, event_id FROM notifications ORDER BY id DESC LIMIT 3;"
@@ -140,9 +142,9 @@ window (60 tries, about a second apart) loses the ticket; that is a known limit 
 ### F2: an OEM-integrated site stops
 Steps: note the fleet page's FLEET OUTPUT, FLEET RATING and SITES tiles; `docker.exe compose stop oem6`; wait about a minute and
 read the tiles and the OEM6 card; `docker.exe compose start oem6`; wait about a minute.
-Pass (expected, to be confirmed): SITES reads `7 of 8 reporting`; FLEET OUTPUT falls by OEM6's output (about 7.5 MW at midday);
-FLEET RATING stays 47.5 MW because it is a stored sum of nameplates, not a measurement; within about a minute of the restart SITES
-reads `8 of 8 reporting` again. Write down what the OEM6 card shows while the site is stopped.
+Pass (confirmed 2026-10-14): SITES reads `7 of 8 reporting`; FLEET OUTPUT falls by the output OEM6 was showing (up to 7.5 MW at
+midday); FLEET RATING stays 47.5 MW because it is a stored sum of nameplates, not a measurement; the OEM6 card shows `No data`,
+not an old number; within about a minute of the restart SITES reads `8 of 8 reporting` again.
 
 ## Security and rebuild
 
@@ -183,3 +185,39 @@ separately when that piece is done.
 | Date | Run by | Tests | Notes |
 |---|---|---|---|
 | 2026-10-14 | the agent | P1, P2, P3, C1 | The commands above, as listed in the table. |
+| 2026-10-14 | the agent and the tester | B1, B2, A1, F1, F2 | Measured values in the notes below. |
+
+### Notes from the 2026-10-14 run
+
+- **B1.** After restarting the simulators: plant output 5.00 MW, sunlight 896 W/m2, POWER LIMIT None active, every inverter
+  1,250 kW in the state Throttled.
+- **B2.** With 2.5 MW entered and the limit switched on: plant output 2.50 MW, each inverter 625 kW, "Is the limit cutting
+  output?" Yes, "Plant status" Curtailed, POWER LIMIT "Limiting output". The simulator log showed the number arriving first
+  (limit 2.500 MW, enabled False) and the switch about 19 s later (enabled True). After the switch was turned off: 5.00 MW and
+  1,250 kW per inverter again. The state label is Throttled both when clipping and when curtailing, so only the limit indicator
+  tells them apart.
+- **A1, Inv2 on site1.** Ticket 5 was created 0.43 s after the fault's own timestamp (`fault_started_at` 00:11:38.193Z,
+  `created_at` 00:11:38.625Z). The journal's Active row is 19:11:38.605 local, 0.41 s after that timestamp. The escalation wrote
+  notification 3 at 120.007 s after Active. The three journal rows (Active, Acknowledged 19:15:27.424, Cleared 19:15:32.669) share
+  one `eventid`. After a reason was chosen on the Downtime page, `downtime_intervals` showed `INV_FAULT` with `cleared_at` and
+  `acknowledged_at` set. `site_kpis` for site1 went from 1 to 2 fault events, and the fleet page's Reliability row for site1 read
+  2 events, mean time to acknowledge 3 h 35 min, mean time active 37 min 25 s, availability 98.70 %, the same as the query.
+- **A finding from A1.** The journal rose by four rows, not three. The same Acknowledge action also acknowledged the earlier Inv1
+  alarm, which had cleared at 13:18 but was never acknowledged, so its acknowledge time (19:15:27) came six hours after it
+  cleared and dominated the mean time to acknowledge (3 h 35 min). The system behaved as designed: an alarm that has cleared but
+  is unacknowledged stays in the table until a person acknowledges it. The A1 precondition now says to start with no old
+  unacknowledged alarms. That old fault still has the reason `UNASSIGNED`, which counts against availability.
+- **F1, Inv3 on site1.** With the CMMS stopped, Inv3 was tripped at 19:22:17 local (journal Active row 19:22:17.283) and the CMMS
+  was started again after the planned wait of about 20 s. Exactly one new ticket arrived, #6 for site1 Inv3, 28.08 s after the fault: `fault_started_at`
+  00:22:17.181Z (19:22:17.181 local, 0.10 s before the journal's Active row) and `created_at` 00:22:45.258Z. No second ticket
+  appeared, and the notification count stayed at 3 because the alarm was acknowledged inside two minutes (19:23:02) and cleared
+  at 19:23:06. The ticket carries the time of the trip, not the time it was delivered, which is what the retry design promises.
+- **F2, oem6.** The fleet page was recorded every 5 s while oem6 was stopped (at 19:26, to the minute) and started again (19:28:25).
+  In the last snapshot before the first "No data" one, fleet output was 22.00 MW and the OEM6 card showed 3.18 MW; in the next
+  snapshot (19:26:47) SITES read `7 of 8 reporting`, fleet output was 18.89 MW (down 3.11 MW; the other sites also drift a few
+  tenths of a MW every 5 s with the simulated clouds), FLEET RATING was still 47.5 MW, and the OEM6 card read "No data" with the
+  line "No good reading from this site's meter", with no old number left on it. SITES returned to `8 of 8 reporting` in the
+  snapshot at 19:28:47, 22 s or less after the start. Because the stop time was noted only to the minute, how quickly the page
+  noticed the stop is not measured. Restarting a simulator puts its clock back to `SIM_START`, so OEM6 then read 7.50 MW at 894 W/m2
+  (midday), while oem1 to oem5, which were not restarted, kept their own clocks (OEM6 itself had read about 357 W/m2 before its
+  restart); restart them too when all the OEM sites should be at midday.
