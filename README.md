@@ -1,5 +1,8 @@
 # Fleet SCADA on Ignition 8.3: Solar + BESS Fleet Platform
 
+[![tests](https://github.com/weslysmith863/ignition-fleet-scada/actions/workflows/tests.yml/badge.svg)](https://github.com/weslysmith863/ignition-fleet-scada/actions/workflows/tests.yml)
+[![secret scan](https://github.com/weslysmith863/ignition-fleet-scada/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/weslysmith863/ignition-fleet-scada/actions/workflows/secret-scan.yml)
+
 > **Personal learning project built on Ignition Maker Edition (non-commercial).**
 > Not a product, not a customer deployment. Every device and site is simulated, and the numbers are illustrative.
 > Ignition is a trademark of Inductive Automation. This project is not affiliated with or endorsed by Inductive Automation.
@@ -10,16 +13,17 @@ underneath, and everything stored as files in Git and deployed through the gatew
 
 ## Status
 
-**Phases 0 to 3 of 4 are built and working.** Eight simulated sites run from their points lists, and one kind of fault, an
-inverter trip, runs end to end: alarm, escalation, repair ticket, downtime record, and reliability numbers.
+**Phases 0 to 3 of 4 are built and working, and Phase 4 is under way.** Eight simulated sites run from their points lists, and
+one kind of fault, an inverter trip, runs end to end: alarm, escalation, repair ticket, downtime record, and reliability numbers.
+Every push is checked by CI: the tests on a clean machine, and a secret scan of the whole Git history.
 
 | Phase | Goal | State |
 |---|---|---|
 | 0 | Spikes and skeleton: hub reads a tag from a site gateway | Done |
 | 1 | One site end to end | Done |
 | 2 | Fleet and templating: 8 sites from points lists, a battery model | Done |
-| 3 | Operations layer: alarms, downtime, Event Streams, fault scenarios | Built for one fault type (the inverter trip); being consolidated, with no new fault types for now |
-| 4 | Admin tooling, CI, commissioning docs, showcase | Planned |
+| 3 | Operations layer: alarms, downtime, Event Streams, fault scenarios | Done for one fault type (the inverter trip); no new fault types for now |
+| 4 | Admin tooling, CI, commissioning docs, showcase | In progress: CI, a secret scan, a read-only status check and a factory acceptance test plan (nine of its twelve tests run and passed) are done; the Build Brief and a demo video remain |
 
 ## What works today
 
@@ -35,6 +39,12 @@ inverter trip, runs end to end: alarm, escalation, repair ticket, downtime recor
   instances, imports the saved UDT definitions, creates the PostgreSQL connection, the SQL Historian and the alarm journal,
   creates the hub's tag providers, deploys projects, retargets device hosts, and applies the SQL files. Each tool is a dry run
   or reports before it changes anything, and none overwrites hand-built objects.
+- **CI and secret scanning** (`.github/workflows/`): GitHub Actions runs the three test suites on every push and pull request,
+  on a clean machine, so the CMMS web-service tests and the OPC UA tests run there too. A second workflow scans the whole Git
+  history with gitleaks, with two extra rules for Ignition's token shapes, and a pre-commit hook (`scripts/check_secrets.py`)
+  checks for the values in your own `.env`.
+- **Status check** (`generator/status.py`): `python -m generator.status` asks each gateway, read-only, whether it answers with
+  its own API key, reports its own name, lists no problems and has its projects enabled, and asks the mock CMMS for `/health`.
 - **The operations chain** (Phase 3, `docs/layer-cards/04-operations-layer.md`): a trip raises the `InverterFault` alarm, which
   is journaled in PostgreSQL; an alarm pipeline escalates it if nobody acknowledges within two minutes; an Event Stream posts one
   repair ticket per fault, with retry, to a mock CMMS container (`cmms/`, FastAPI and SQLite); an operator gives each fault a
@@ -45,11 +55,11 @@ inverter trip, runs end to end: alarm, escalation, repair ticket, downtime recor
   detail page. `core` holds the shared views.
 - **History and SQL**: SQL Historian on PostgreSQL, and five numbered SQL files in `sql/` (applied with
   `python -m generator.sqlfiles --apply`).
-- **Documentation**: 21 architecture decision records, five layer cards, a domain primer, a factory acceptance test plan
-  (`docs/commissioning/`), and findings logs of what the
-  experiments showed, including the mistakes.
+- **Documentation**: 21 architecture decision records, five layer cards, a domain primer, a factory acceptance test plan with
+  its first measured results (`docs/commissioning/`), and findings logs of what the experiments showed, including the mistakes.
 - **Tests**: 444 automated tests (156 simulator, 265 generator and tooling, 23 mock CMMS), standard library only. The five CMMS
-  web-service tests and the three OPC UA simulator tests need extra packages and are skipped without them.
+  web-service tests and the three OPC UA simulator tests need extra packages and are skipped without them; CI installs those
+  packages, so they run there.
 
 ## What it demonstrates
 
@@ -116,6 +126,9 @@ These are deliberate for a local, single-machine project, and each is written do
   outage or a gateway restart can lose one (ADR 0018, ADR 0019).
 - **Manual steps**: the license token, the `API_RW` security level, the write permission, and the API key. Everything else was
   rebuilt from an empty gateway by the tools (finding 51).
+- **Tests prove the code, not the gateways**: the unit tests use fake gateways, so they cannot say what a real gateway answers.
+  A fake with the wrong shape once passed all its tests while the real answer differed. The status command and the factory
+  acceptance test plan check the real gateways, and they run against a simulated plant, so they say nothing about real equipment.
 
 ## Repo layout
 
@@ -131,6 +144,10 @@ docs/layer-cards/    one card per layer: why it exists, what it owns, how it tal
 docs/adr/            architecture decision records
 docs/spikes/         what each time-boxed experiment found
 docs/domain/         a solar plant primer, a battery primer, and a glossary
+docs/commissioning/  the factory acceptance test plan and its measured results
+.github/workflows/   CI: the test suites on every push, and a gitleaks scan of the whole history
+.gitleaks.toml       gitleaks settings: its default rules plus two for Ignition's token shapes
+scripts/             check_secrets.py, the pre-commit secret check
 spikes/              throwaway experiment files (reference only)
 docker-compose.yml   hub, site1, site2, PostgreSQL, cmms, two plant simulators, and six OEM simulators
 CLAUDE.md            the working rules for the AI coding agent used on this project
@@ -144,6 +161,7 @@ CLAUDE.md            the working rules for the AI coding agent used on this proj
 - [Layer Card 3: fleet and templating](docs/layer-cards/03-fleet-and-templating.md)
 - [Layer Card 4: the operations layer](docs/layer-cards/04-operations-layer.md)
 - [ADR index](docs/adr/README.md)
+- [Factory acceptance test plan and its first results](docs/commissioning/01-fat-plan.md)
 - Findings from the experiments: [Phase 0](docs/spikes/phase0-findings.md), [Phase 1](docs/spikes/phase1-findings.md), [Phases 2 and 3](docs/spikes/phase2-findings.md)
 - [Solar plant primer](docs/domain/01-solar-plant-primer.md), [battery primer](docs/domain/02-battery-primer.md), [glossary](docs/domain/glossary.md)
 
