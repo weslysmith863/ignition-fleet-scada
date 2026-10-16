@@ -11,6 +11,14 @@ A SCADA platform for simulated utility-scale solar and battery storage (BESS) si
 Ignition 8.3 and designed the way an integrator would: sites generated from templates and a points list, Python and SQL
 underneath, and everything stored as files in Git and deployed through the gateway's REST API. It runs from Docker Compose.
 
+![One inverter trip on Site 1: the Inv2 card faults, the gateway raises an alarm, a repair ticket appears at the mock maintenance system, and the alarm is acknowledged and cleared](docs/images/fault-to-ticket.gif)
+
+*One inverter trip on Site 1, recorded in a browser: the card drops to Fault, the gateway raises the alarm, a repair ticket
+appears in the mock maintenance system (CMMS), and the alarm is acknowledged and cleared. The numbered captions were added to
+the pages while recording, and the ticket row is highlighted; the time from fault to ticket in the caption is computed from
+that ticket's own timestamps. The plant is simulated; the chain is described in
+[Layer Card 4](docs/layer-cards/04-operations-layer.md).*
+
 ## Status
 
 **Phases 0 to 3 of 4 are built and working, and Phase 4 is under way.** Eight simulated sites run from their points lists, and
@@ -57,7 +65,7 @@ Every push is checked by CI: the tests on a clean machine, and a secret scan of 
   `python -m generator.sqlfiles --apply`).
 - **Documentation**: 21 architecture decision records, five layer cards, a domain primer, a factory acceptance test plan with
   its first measured results (`docs/commissioning/`), and findings logs of what the experiments showed, including the mistakes.
-- **Tests**: 444 automated tests (156 simulator, 265 generator and tooling, 23 mock CMMS), standard library only. The five CMMS
+- **Tests**: 451 automated tests (156 simulator, 272 generator and tooling, 23 mock CMMS), standard library only. The five CMMS
   web-service tests and the three OPC UA simulator tests need extra packages and are skipped without them; CI installs those
   packages, so they run there.
 
@@ -145,6 +153,7 @@ docs/adr/            architecture decision records
 docs/spikes/         what each time-boxed experiment found
 docs/domain/         a solar plant primer, a battery primer, and a glossary
 docs/commissioning/  the factory acceptance test plan and its measured results
+docs/images/         the GIF shown at the top of this README
 .github/workflows/   CI: the test suites on every push, and a gitleaks scan of the whole history
 .gitleaks.toml       gitleaks settings: its default rules plus two for Ignition's token shapes
 scripts/             check_secrets.py, the pre-commit secret check

@@ -12,3 +12,5 @@
 *.sql text eol=lf
 # A pipeline's data.bin is gzipped Java serialization: never convert it.
 *.bin binary
+# The README's recorded GIF (docs/images): an image, never converted.
+*.gif binary
