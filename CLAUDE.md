@@ -189,7 +189,9 @@ explainable.
 ## Public-repo hygiene
 This repository is public (confirmed 2026-10-06 at the end of Phase 1), so treat everything committed as public. Personal information and Wes's learning notes belong in the private Notion pages,
 never in this repo. Before any push, scan the whole history for the `.env` secret values (none were found on 2026-10-06).
-`scripts/check_secrets.py` blocks a commit on a leaked-looking credential. A reviewed false alarm may carry
+`scripts/check_secrets.py` blocks a commit on a leaked-looking credential. Its shape check (check 3) does not read binary
+files (a NUL byte in the first 8,000 bytes), because a recorded GIF matched it by chance; the forbidden-file and `.env`-value
+checks still read them (approved by Wes, 2026-10-16). A reviewed false alarm may carry
 `# check-secrets: allow <check> - <reason>` on that one line (checks: jwe, token, password-literal); it never hides a value from
 `.env`. Adding a marker relaxes a security check, so it needs Wes's approval. The first is `OPC_KEY_STORE_PASSWORD` in
 `generator/build.py`, approved 2026-10-06: a dev default for a self-generated client key store, not a credential.

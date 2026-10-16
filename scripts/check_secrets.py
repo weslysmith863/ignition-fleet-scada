@@ -6,8 +6,11 @@ Runs from the git pre-commit hook (.githooks/pre-commit) and can be run by hand:
 Checks the STAGED version of every file that is about to be committed:
   1. No .env file and no gateway backup (*.gwbk) is staged.
   2. No secret value from the local .env (passwords, tokens, license keys) appears in any staged file.
-  3. No line looks like a leaked credential (JWE-style strings, long name-and-secret tokens, or a password
-     assigned a literal value).
+  3. No line of a TEXT file looks like a leaked credential (JWE-style strings, long name-and-secret tokens, or a password
+     assigned a literal value). A binary file (git's own test: a NUL byte in the first 8,000 bytes) skips this check only:
+     compressed image data is long runs of letters and digits that match these shapes by chance, as the README's recorded GIF
+     did, and a shape rule means nothing there. Checks 1 and 2 still apply to binary files. Wes approved this exception on
+     2026-10-16.
 
 It never prints a secret, only the file and line number. This is a local safety net; CI should also run a
 dedicated scanner such as gitleaks.
@@ -50,6 +53,33 @@ def env_value_problems(path, content, secrets):
     return [f"{path}: contains the value of {key} from your local .env" for key, value in secrets.items() if value in content]
 
 
+BINARY_SNIFF_BYTES = 8000
+
+
+def is_binary(raw):
+    """Git's own test for a binary file: a NUL byte in the first 8,000 bytes."""
+    return b"\0" in raw[:BINARY_SNIFF_BYTES]
+
+
+def forbidden_file(path):
+    """Check 1: a file that must never be committed, by name: .env, .env.<anything> except .env.example, or a gateway backup."""
+    name = path.rsplit("/", 1)[-1]
+    return name == ".env" or (name.startswith(".env.") and name != ".env.example") or name.endswith(".gwbk")
+
+
+def file_problems(path, raw, secrets):
+    """Checks 2 and 3 for one staged file's bytes. Check 2 (the values in your own .env) runs on every file. Check 3 (the
+    credential shapes) runs only on text; see the module docstring for why a binary file skips it."""
+    content = raw.decode("utf-8", errors="ignore")
+    problems = env_value_problems(path, content, secrets)
+    if is_binary(raw):
+        return problems
+    for lineno, line in enumerate(content.splitlines(), 1):
+        for label in credential_problems(line):
+            problems.append(f"{path}:{lineno}: looks like a leaked credential ({label})")
+    return problems
+
+
 def git(*args):
     return subprocess.run(["git", *args], capture_output=True, text=True, check=True).stdout
 
@@ -73,20 +103,14 @@ def main():
     secrets = load_env_secrets()
 
     for path in staged:
-        name = path.rsplit("/", 1)[-1]
-        if name == ".env" or (name.startswith(".env.") and name != ".env.example") or name.endswith(".gwbk"):
+        if forbidden_file(path):
             problems.append(f"{path}: this kind of file must never be committed")
             continue
         try:
-            content = subprocess.run(["git", "show", f":{path}"], capture_output=True, check=True).stdout.decode(
-                "utf-8", errors="ignore"
-            )
+            raw = subprocess.run(["git", "show", f":{path}"], capture_output=True, check=True).stdout
         except subprocess.CalledProcessError:
             continue
-        problems += env_value_problems(path, content, secrets)
-        for lineno, line in enumerate(content.splitlines(), 1):
-            for label in credential_problems(line):
-                problems.append(f"{path}:{lineno}: looks like a leaked credential ({label})")
+        problems += file_problems(path, raw, secrets)
 
     if problems:
         print("COMMIT BLOCKED: possible secrets found (values are not shown):")

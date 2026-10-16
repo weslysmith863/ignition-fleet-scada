@@ -80,5 +80,43 @@ class EnvValueTests(unittest.TestCase):
         self.assertEqual(check_secrets.env_value_problems("a.py", "x = 1", self.SECRETS), [])
 
 
+class BinaryFileTests(unittest.TestCase):
+    """A recorded GIF once tripped the token-shape check by chance (compressed pixels contain long runs of letters and digits).
+    Binary files now skip that check only; the forbidden names and the values from the local .env still apply to them."""
+    SECRETS = {"HUB_API_TOKEN": "not-a-real-value-123"}
+
+    def test_git_calls_a_file_binary_when_a_nul_byte_is_in_the_first_8000_bytes(self):
+        self.assertTrue(check_secrets.is_binary(b"a" * 7999 + b"\0"))
+        self.assertFalse(check_secrets.is_binary(b"a" * 8000 + b"\0"))
+        self.assertFalse(check_secrets.is_binary(b"plain text\n"))
+
+    def test_a_credential_shaped_line_in_a_text_file_is_flagged_with_its_line_number(self):
+        raw = ("x = 1\n" + TOKEN_LINE + "\n").encode()
+        self.assertEqual(check_secrets.file_problems("a.txt", raw, {}),
+                         ["a.txt:2: looks like a leaked credential (long name:secret token)"])
+
+    def test_the_same_line_inside_a_binary_file_is_not_flagged(self):
+        raw = b"GIF89a\0\1" + TOKEN_LINE.encode() + b"\0"
+        self.assertEqual(check_secrets.file_problems("a.gif", raw, {}), [])
+
+    def test_a_value_from_the_local_env_is_still_found_inside_a_binary_file(self):
+        raw = b"GIF89a\0\1" + b"not-a-real-value-123" + b"\0"
+        self.assertEqual(check_secrets.file_problems("a.gif", raw, self.SECRETS),
+                         ["a.gif: contains the value of HUB_API_TOKEN from your local .env"])
+
+    def test_a_binary_file_without_any_value_or_shape_has_no_problem(self):
+        self.assertEqual(check_secrets.file_problems("a.gif", b"GIF89a\0\1\2\3", self.SECRETS), [])
+
+
+class ForbiddenFileTests(unittest.TestCase):
+    def test_env_files_and_gateway_backups_are_forbidden_anywhere_in_the_tree(self):
+        for path in (".env", "sub/dir/.env", ".env.local", "a/.env.production", "backup.gwbk", "x/y/gateway.gwbk"):
+            self.assertTrue(check_secrets.forbidden_file(path), path)
+
+    def test_the_example_file_and_ordinary_files_are_allowed_including_images(self):
+        for path in (".env.example", "docs/images/fault-to-ticket.gif", "README.md", "environment.py"):
+            self.assertFalse(check_secrets.forbidden_file(path), path)
+
+
 if __name__ == "__main__":
     unittest.main()
